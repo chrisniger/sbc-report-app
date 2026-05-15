@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-sbc-red: #C8102E;
+  --color-sbc-black: #111111;
+  --color-sbc-white: #FFFFFF;
+  --color-sbc-grey: #E8E8E8;
+
+  --font-heading: var(--font-bebas-neue);
+  --font-body: var(--font-dm-sans);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f5f5f5;
+  --fg: #111111;
+  --card-bg: #ffffff;
+  --border: #E8E8E8;
+  --sidebar-bg: #111111;
+  --topbar-bg: #ffffff;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --bg: #0f0f0f;
+  --fg: #f0f0f0;
+  --card-bg: #1a1a1a;
+  --border: #2a2a2a;
+  --sidebar-bg: #0a0a0a;
+  --topbar-bg: #18181b;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Sidebar and topbar */
+  nav,
+  header,
+  aside {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Cards should not break across pages */
+  .rounded-lg {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: 1px solid #cccccc !important;
+  }
 }

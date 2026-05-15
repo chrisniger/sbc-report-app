@@ -1,0 +1,475 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  HEAD_OF_SUPERVISOR
+  SUPERVISOR_PASTOR
+  HOD
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  PASTOR_REVIEWED
+  HEAD_REVIEWED
+  COMPLETED
+}
+
+enum Grade {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+  NOT_APPLICABLE
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(cuid())
+  username            String    @unique
+  email               String?   @unique
+  phone               String?   @unique
+  passwordHash        String
+  firstName           String
+  lastName            String?
+  roles               Json        // UserRole[] stored as JSON array in MySQL
+  isActive            Boolean   @default(true)
+  mustChangePassword  Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  hodProfile          HodProfile?
+  pastorProfile       PastorProfile?
+  headProfile         HeadOfSupervisorProfile?
+
+  createdReports      HodReport[]       @relation("ReportCreatedBy")
+  pastorReviews       PastorReview[]    @relation("ReviewByPastor")
+  headReviews         HeadReview[]      @relation("ReviewByHead")
+  activityLogs        ActivityLog[]
+  createdMembers      ServiceTeamMember[] @relation("MemberCreatedBy")
+
+  @@index([username])
+  @@index([email])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// HOD PROFILE
+// ─────────────────────────────────────────────
+
+model HodProfile {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  hodName             String
+  assistantOne        String?
+  assistantTwo        String?
+
+  // HOD can manage multiple service teams
+  serviceTeams        ServiceTeam[]  @relation("HodServiceTeams")
+
+  // Supervising pastor assigned to this HOD
+  supervisorId        String?
+  supervisor          PastorProfile? @relation(fields: [supervisorId], references: [id])
+
+  reports             HodReport[]
+
+  @@map("hod_profiles")
+}
+
+// ─────────────────────────────────────────────
+// SUPERVISOR PASTOR PROFILE
+// ─────────────────────────────────────────────
+
+model PastorProfile {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pastorName          String
+
+  // Pastor supervises multiple HODs
+  hods                HodProfile[]
+
+  // Service teams assigned to this pastor (for notification routing)
+  serviceTeams        ServiceTeam[]  @relation("PastorServiceTeams")
+
+  reviews             PastorReview[]
+
+  // Head of supervisor who oversees this pastor
+  headId              String?
+  head                HeadOfSupervisorProfile? @relation(fields: [headId], references: [id])
+
+  @@map("pastor_profiles")
+}
+
+// ─────────────────────────────────────────────
+// HEAD OF SUPERVISOR PROFILE
+// ─────────────────────────────────────────────
+
+model HeadOfSupervisorProfile {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  headName            String
+
+  // Head oversees all pastors
+  pastors             PastorProfile[]
+
+  reviews             HeadReview[]
+
+  @@map("head_of_supervisor_profiles")
+}
+
+// ─────────────────────────────────────────────
+// SERVICE TEAM
+// ─────────────────────────────────────────────
+
+model ServiceTeam {
+  id                  String    @id @default(cuid())
+  name                String    @unique
+  description         String?
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Assigned HOD (can have multiple HODs via junction)
+  hodId               String?
+  hod                 HodProfile? @relation("HodServiceTeams", fields: [hodId], references: [id])
+
+  // Assigned Supervisor Pastor
+  pastorId            String?
+  pastor              PastorProfile? @relation("PastorServiceTeams", fields: [pastorId], references: [id])
+
+  // Members belonging to this team (junction table)
+  members             ServiceTeamMemberAssignment[]
+
+  // Reports filed under this team
+  reports             HodReport[]
+
+  @@index([name])
+  @@map("service_teams")
+}
+
+// ─────────────────────────────────────────────
+// SERVICE TEAM MEMBER (Central Table)
+// Phone number is the unique key
+// ─────────────────────────────────────────────
+
+model ServiceTeamMember {
+  id                  String    @id @default(cuid())
+  fullName            String
+  firstName           String
+  lastName            String
+  phone               String    @unique   // ← unique key as per requirements
+  homeLocation        String?
+  email               String?
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  createdById         String?
+  createdBy           User?     @relation("MemberCreatedBy", fields: [createdById], references: [id])
+
+  // A member can belong to multiple teams
+  teamAssignments     ServiceTeamMemberAssignment[]
+
+  // Grades received in reports
+  reportGrades        ReportMemberGrade[]
+
+  @@index([phone])
+  @@index([fullName])
+  @@map("service_team_members")
+}
+
+// ─────────────────────────────────────────────
+// JUNCTION: Member ↔ Service Team
+// ─────────────────────────────────────────────
+
+model ServiceTeamMemberAssignment {
+  id                  String    @id @default(cuid())
+  memberId            String
+  member              ServiceTeamMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  teamId              String
+  team                ServiceTeam       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  assignedAt          DateTime  @default(now())
+
+  @@unique([memberId, teamId])
+  @@map("service_team_member_assignments")
+}
+
+// ─────────────────────────────────────────────
+// HOD MONTHLY REPORT (Parent)
+// ─────────────────────────────────────────────
+
+model HodReport {
+  id                  String        @id @default(cuid())
+  reportMonth         Int           // 1–12
+  reportYear          Int           // e.g. 2026
+  status              ReportStatus  @default(DRAFT)
+
+  // HOD info (snapshot at time of submission)
+  hodName             String
+  assistantOne        String?
+  assistantTwo        String?
+
+  totalMembersEnrolled  Int
+  totalMembersPresent   Int?
+  totalMembersAbsent    Int?        // auto-calculated
+
+  // Remarks
+  generalObservations   String?     @db.Text
+  challengesEncountered String?     @db.Text
+
+  // Confirmation
+  hodSignature          String?
+  submittedAt           DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  hodProfileId        String
+  hodProfile          HodProfile  @relation(fields: [hodProfileId], references: [id])
+
+  serviceTeamId       String
+  serviceTeam         ServiceTeam @relation(fields: [serviceTeamId], references: [id])
+
+  createdById         String
+  createdBy           User        @relation("ReportCreatedBy", fields: [createdById], references: [id])
+
+  // Child: member grades
+  memberGrades        ReportMemberGrade[]
+
+  // Reviews
+  pastorReview        PastorReview?
+  headReview          HeadReview?
+
+  @@unique([hodProfileId, serviceTeamId, reportMonth, reportYear])
+  @@index([reportMonth, reportYear])
+  @@index([status])
+  @@map("hod_reports")
+}
+
+// ─────────────────────────────────────────────
+// REPORT MEMBER GRADE (Child rows)
+// One row per member per report
+// ─────────────────────────────────────────────
+
+model ReportMemberGrade {
+  id                  String    @id @default(cuid())
+
+  reportId            String
+  report              HodReport         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  memberId            String
+  member              ServiceTeamMember @relation(fields: [memberId], references: [id])
+
+  // The 5 grading criteria
+  generalAttitude     Grade     @default(NOT_APPLICABLE)
+  teamwork            Grade     @default(NOT_APPLICABLE)
+  punctuality         Grade     @default(NOT_APPLICABLE)
+  appearance          Grade     @default(NOT_APPLICABLE)
+  attendance          Grade     @default(NOT_APPLICABLE)
+
+  // Computed average (stored for fast querying)
+  averageScore        Float?
+
+  @@unique([reportId, memberId])
+  @@map("report_member_grades")
+}
+
+// ─────────────────────────────────────────────
+// PASTOR REVIEW
+// Not visible to HOD
+// ─────────────────────────────────────────────
+
+model PastorReview {
+  id                  String    @id @default(cuid())
+
+  reportId            String    @unique
+  report              HodReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  pastorId            String
+  pastor              PastorProfile @relation(fields: [pastorId], references: [id])
+
+  reviewedById        String
+  reviewedBy          User      @relation("ReviewByPastor", fields: [reviewedById], references: [id])
+
+  // Section B — Pastor grading of HOD
+  hodGeneralAttitude  Grade     @default(NOT_APPLICABLE)
+  hodTeamwork         Grade     @default(NOT_APPLICABLE)
+  hodPunctuality      Grade     @default(NOT_APPLICABLE)
+  hodAppearance       Grade     @default(NOT_APPLICABLE)
+  hodAttendance       Grade     @default(NOT_APPLICABLE)
+
+  // Section C — Comments (not visible to HOD)
+  comments            String?   @db.Text
+
+  // Confirmation & signature
+  confirmed           Boolean   @default(false)
+  signature           String?
+  reviewDate          DateTime?
+  submittedAt         DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Head of supervisor review on top of this
+  headReview          HeadReview?
+
+  @@map("pastor_reviews")
+}
+
+// ─────────────────────────────────────────────
+// HEAD OF SUPERVISOR REVIEW
+// Reviews both HOD reports AND pastor reviews
+// ─────────────────────────────────────────────
+
+model HeadReview {
+  id                  String    @id @default(cuid())
+
+  reportId            String    @unique
+  report              HodReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  pastorReviewId      String?   @unique
+  pastorReview        PastorReview? @relation(fields: [pastorReviewId], references: [id])
+
+  reviewedById        String
+  reviewedBy          User      @relation("ReviewByHead", fields: [reviewedById], references: [id])
+
+  headProfileId       String?
+  headProfile         HeadOfSupervisorProfile? @relation(fields: [headProfileId], references: [id])
+
+  // Section D — Head overall comments
+  overallComments     String?   @db.Text
+
+  // Head grading of the Supervisor Pastor
+  supervisorReviewed  String?   // pastor name snapshot
+  supervisorPerformance Grade?
+
+  confirmed           Boolean   @default(false)
+  signature           String?
+  reviewDate          DateTime?
+  submittedAt         DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("head_reviews")
+}
+
+// ─────────────────────────────────────────────
+// SMTP SETTINGS (Admin configurable)
+// ─────────────────────────────────────────────
+
+model SmtpSettings {
+  id                  String    @id @default(cuid())
+  host                String    @default("smtp.hostinger.com")
+  port                Int       @default(465)
+  secure              Boolean   @default(true)   // SSL
+  username            String
+  password            String    // encrypted at app level
+  fromDisplay         String    @default("SBC Reports <reports@summitdata.one>")
+  updatedAt           DateTime  @updatedAt
+  updatedById         String?
+
+  @@map("smtp_settings")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATION SETTINGS
+// Admin sets who gets emailed for which event
+// ─────────────────────────────────────────────
+
+model NotificationSetting {
+  id                  String    @id @default(cuid())
+  event               String    // e.g. "HOD_REPORT_SUBMITTED", "PASTOR_REVIEW_DONE"
+  recipientEmail      String
+  recipientName       String?
+  serviceTeamId       String?   // null = applies to all teams
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+
+  @@index([event])
+  @@map("notification_settings")
+}
+
+// ─────────────────────────────────────────────
+// CUSTOM FORM FIELD (Admin form builder)
+// ─────────────────────────────────────────────
+
+model CustomFormField {
+  id                  String    @id @default(cuid())
+  formName            String    // "HOD_REPORT" | "PASTOR_REVIEW" | "MEMBER_FORM"
+  fieldLabel          String
+  fieldType           String    // "text" | "textarea" | "select" | "radio" | "checkbox"
+  fieldOptions        String?   @db.Text  // JSON array of options for select/radio
+  isRequired          Boolean   @default(false)
+  visibleToRoles      String    @db.Text  // JSON array of UserRole
+  fieldOrder          Int       @default(0)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([formName])
+  @@map("custom_form_fields")
+}
+
+// ─────────────────────────────────────────────
+// REPORT PERIOD (Admin locks months)
+// ─────────────────────────────────────────────
+
+model ReportPeriod {
+  id                  String    @id @default(cuid())
+  month               Int       // 1–12
+  year                Int
+  deadline            DateTime?
+  isLocked            Boolean   @default(false)
+  autoReminders       Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([month, year])
+  @@map("report_periods")
+}
+
+// ─────────────────────────────────────────────
+// ACTIVITY LOG (Audit trail)
+// ─────────────────────────────────────────────
+
+model ActivityLog {
+  id                  String    @id @default(cuid())
+  userId              String?
+  user                User?     @relation(fields: [userId], references: [id])
+  action              String    // e.g. "REPORT_SUBMITTED", "MEMBER_ADDED"
+  description         String    @db.Text
+  entityType          String?   // "HodReport" | "ServiceTeamMember" | etc.
+  entityId            String?
+  ipAddress           String?
+  createdAt           DateTime  @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("activity_logs")
+}
