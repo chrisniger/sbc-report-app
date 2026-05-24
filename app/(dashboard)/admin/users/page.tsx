@@ -40,7 +40,9 @@ async function getData() {
     }),
   ])
 
-  const safeUsers: UserRecord[] = users.map(({ passwordHash: _pw, ...u }) => ({
+  type UserSource = (typeof users)[number]
+
+  const safeUsers: UserRecord[] = users.map(({ passwordHash: _pw, ...u }: UserSource) => ({
     ...u,
     roles: u.roles as string[],
   }))
