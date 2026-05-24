@@ -68,9 +68,11 @@ async function getData() {
     }),
   ])
 
+  type TrendReport = (typeof trendReports)[number]
+
   // Team scores for current month
   const currentReports = trendReports.filter(
-    r => r.reportMonth === month && r.reportYear === year
+    (r: TrendReport) => r.reportMonth === month && r.reportYear === year
   )
   const teamScoreMap = new Map<string, { scores: number[] }>()
   for (const r of currentReports) {
@@ -110,7 +112,7 @@ async function getData() {
     const point: TrendPoint = { label: m.label }
     for (const teamName of top5Teams) {
       const scores = trendReports
-        .filter(r => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.name === teamName)
+        .filter((r: TrendReport) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.name === teamName)
         .flatMap(r => r.memberGrades.map(g => g.averageScore).filter((s): s is number => s != null))
       point[teamName] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null
     }
