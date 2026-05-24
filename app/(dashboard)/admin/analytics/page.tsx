@@ -5,15 +5,12 @@ import AdminAnalyticsClient from '@/components/analytics/AdminAnalyticsClient'
 import type { TeamScorePoint } from '@/components/charts/TeamScoreBar'
 import type { TrendPoint } from '@/components/charts/ScoreTrendChart'
 import type { MemberRow } from '@/components/charts/MemberScoreTable'
-import type { Prisma } from '@prisma/client'
 
-type MemberDetail = Prisma.ServiceTeamMemberGetPayload<{
-  include: {
-    teamAssignments: {
-      include: { team: { select: { name: true } } }
-    }
-  }
-}>
+type MemberDetail = {
+  id: string
+  fullName: string
+  teamAssignments: { team: { name: string } }[]
+}
 
 function build12Months() {
   const now = new Date()
