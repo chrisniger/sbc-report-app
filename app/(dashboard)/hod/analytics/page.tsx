@@ -6,7 +6,26 @@ import type { TeamScorePoint } from '@/components/charts/TeamScoreBar'
 import type { TrendPoint } from '@/components/charts/ScoreTrendChart'
 import type { HodMemberGradeRow } from '@/components/analytics/HodAnalyticsClient'
 
-function build12Months() {
+// ── Explicit result types ──
+interface HodReport {
+  reportMonth: number
+  reportYear: number
+  serviceTeam: { id: string; name: string }
+  memberGrades: HodMemberGrade[]
+}
+interface HodMemberGrade {
+  averageScore: number | null
+  generalAttitude: string
+  teamwork: string
+  punctuality: string
+  appearance: string
+  attendance: string
+  member: { id: string; fullName: string }
+}
+interface MonthPoint { month: number; year: number; label: string }
+interface HodTeam { id: string; name: string }
+
+function build12Months(): MonthPoint[] {
   const now = new Date()
   return Array.from({ length: 12 }, (_: unknown, i: number) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
@@ -30,7 +49,6 @@ async function getData(userId: string) {
   })
   if (!hodProfile) return null
 
-  type HodTeam = (typeof hodProfile.serviceTeams)[number]
   const teamIds = hodProfile.serviceTeams.map((t: HodTeam) => t.id)
 
   const [totalMembers, submittedThisYear, allReports] = await Promise.all([
@@ -46,7 +64,7 @@ async function getData(userId: string) {
     prisma.hodReport.findMany({
       where: {
         hodProfileId: hodProfile.id,
-        OR: months12.map((m: (typeof months12)[number]) => ({ reportMonth: m.month, reportYear: m.year })),
+        OR: months12.map((m: MonthPoint) => ({ reportMonth: m.month, reportYear: m.year })),
         status: { not: 'DRAFT' },
       },
       orderBy: [{ reportYear: 'desc' }, { reportMonth: 'desc' }],
@@ -59,14 +77,12 @@ async function getData(userId: string) {
     }),
   ])
 
-  type ReportSource = (typeof allReports)[number]
-  type GradeSource = ReportSource['memberGrades'][number]
-  type MonthPoint = (typeof months12)[number]
-  type MemberBarEntry = { fullName: string; scores: number[] }
+  // Assert types from Promise.all
+  const typedReports = allReports as HodReport[]
 
   // Best score and latest avg
-  const reportAvgs = allReports.map((r: ReportSource) => {
-    const scores = r.memberGrades.map((g: GradeSource) => g.averageScore).filter((s: unknown): s is number => s != null)
+  const reportAvgs = typedReports.map((r: HodReport) => {
+    const scores = r.memberGrades.map((g: HodMemberGrade) => g.averageScore).filter((s: unknown): s is number => s != null)
     return scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
   }).filter((s: unknown): s is number => s != null)
 
@@ -74,7 +90,7 @@ async function getData(userId: string) {
   const latestAvgScore = reportAvgs.length ? reportAvgs[0] : null
 
   // Member bar data — current month reports
-  const currentMonthReports = allReports.filter((r: ReportSource) => r.reportMonth === month && r.reportYear === year)
+  const currentMonthReports = typedReports.filter((r: HodReport) => r.reportMonth === month && r.reportYear === year)
   const memberBarMap = new Map<string, { fullName: string; scores: number[] }>()
   for (const r of currentMonthReports) {
     for (const g of r.memberGrades) {
@@ -84,7 +100,7 @@ async function getData(userId: string) {
     }
   }
   const memberBarData: TeamScorePoint[] = [...memberBarMap.values()]
-    .map(({ fullName, scores }: MemberBarEntry) => ({
+    .map(({ fullName, scores }: { fullName: string; scores: number[] }) => ({
       name: fullName,
       displayName: fullName.length > 12 ? fullName.split(' ')[0] : fullName,
       avgScore: scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0,
@@ -97,12 +113,12 @@ async function getData(userId: string) {
   const teamNames = hodProfile.serviceTeams.map((t: HodTeam) => t.name)
   const trendData: TrendPoint[] = months12.map((m: MonthPoint) => {
     const point: TrendPoint = { label: m.label }
-    for (const team of hodProfile.serviceTeams) {
-      const report = allReports.find(
-        (r: ReportSource) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.id === team.id
+    for (const team of hodProfile.serviceTeams as HodTeam[]) {
+      const report = typedReports.find(
+        (r: HodReport) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.id === team.id
       )
       if (report) {
-        const scores = report.memberGrades.map((g: GradeSource) => g.averageScore).filter((s: unknown): s is number => s != null)
+        const scores = report.memberGrades.map((g: HodMemberGrade) => g.averageScore).filter((s: unknown): s is number => s != null)
         point[team.name] = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
       } else {
         point[team.name] = null
@@ -112,9 +128,9 @@ async function getData(userId: string) {
   })
 
   // Grade table — most recent report's member grades
-  const latestReport = allReports[0]
+  const latestReport = typedReports[0]
   const gradeRows: HodMemberGradeRow[] = latestReport
-    ? latestReport.memberGrades.map((g: GradeSource) => ({
+    ? latestReport.memberGrades.map((g: HodMemberGrade) => ({
         memberId: g.member.id,
         memberName: g.member.fullName,
         teamName: latestReport.serviceTeam.name,

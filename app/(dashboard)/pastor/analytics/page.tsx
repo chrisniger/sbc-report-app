@@ -7,13 +7,25 @@ import type { TrendPoint } from '@/components/charts/ScoreTrendChart'
 import type { MemberRow } from '@/components/charts/MemberScoreTable'
 import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
+// ── Explicit result types ──
+interface TrendReport {
+  reportMonth: number
+  reportYear: number
+  serviceTeam: { name: string }
+  memberGrades: TrendMemberGrade[]
+}
+interface TrendMemberGrade { averageScore: number | null }
+interface TopMemberGroup { memberId: string; _avg: { averageScore: number | null }; _count: { id: number } }
+interface StatusGroup { status: string; _count: { id: number } }
+interface MonthPoint { month: number; year: number; label: string }
+
 type MemberDetail = {
   id: string
   fullName: string
   teamAssignments: { team: { name: string } }[]
 }
 
-function build6Months() {
+function build6Months(): MonthPoint[] {
   const now = new Date()
   return Array.from({ length: 6 }, (_: unknown, i: number) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1)
@@ -45,7 +57,7 @@ async function getData(userId: string) {
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   })
-  const teamNames = teams.map((t: (typeof teams)[number]) => t.name)
+  const teamNames = teams.map((t: { id: string; name: string }) => t.name)
 
   const [statusGroups, submittedCount, submittedAvg, pendingReviews, submittedReports, trendReports, topMemberGroups] =
     await Promise.all([
@@ -77,7 +89,7 @@ async function getData(userId: string) {
       prisma.hodReport.findMany({
         where: {
           ...reportWhere,
-          OR: months6.map((m: (typeof months6)[number]) => ({ reportMonth: m.month, reportYear: m.year })),
+          OR: months6.map((m: MonthPoint) => ({ reportMonth: m.month, reportYear: m.year })),
           status: { not: 'DRAFT' },
         },
         include: {
@@ -98,15 +110,14 @@ async function getData(userId: string) {
       }),
     ])
 
-  type TrendReport = (typeof trendReports)[number]
-  type TrendMemberGrade = TrendReport['memberGrades'][number]
-  type MonthPoint = (typeof months6)[number]
-  type TopMemberGroup = (typeof topMemberGroups)[number]
-  type StatusGroup = (typeof statusGroups)[number]
+  // Assert types from Promise.all
+  const typedTrendReports = trendReports as TrendReport[]
+  const typedTopMemberGroups = topMemberGroups as TopMemberGroup[]
+  const typedStatusGroups = statusGroups as StatusGroup[]
 
   // Team scores across all non-draft submitted reports in this pastor's HOST scope.
   const teamScoreMap = new Map<string, { scores: number[] }>()
-  for (const r of submittedReports) {
+  for (const r of submittedReports as TrendReport[]) {
     if (!teamScoreMap.has(r.serviceTeam.name)) teamScoreMap.set(r.serviceTeam.name, { scores: [] })
     for (const g of r.memberGrades) {
       if (g.averageScore != null) teamScoreMap.get(r.serviceTeam.name)!.scores.push(g.averageScore)
@@ -126,7 +137,7 @@ async function getData(userId: string) {
   const trendData: TrendPoint[] = months6.map((m: MonthPoint) => {
     const point: TrendPoint = { label: m.label }
     for (const teamName of teamNames) {
-      const scores = trendReports
+      const scores = typedTrendReports
         .filter((r: TrendReport) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.name === teamName)
         .flatMap((r: TrendReport) => r.memberGrades.map((g: TrendMemberGrade) => g.averageScore).filter((s: unknown): s is number => s != null))
       point[teamName] = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
@@ -135,7 +146,7 @@ async function getData(userId: string) {
   })
 
   // Top members
-  const memberIds = topMemberGroups.map((g: TopMemberGroup) => g.memberId)
+  const memberIds = typedTopMemberGroups.map((g: TopMemberGroup) => g.memberId)
   const memberDetails = await prisma.serviceTeamMember.findMany({
     where: { id: { in: memberIds } },
     include: { teamAssignments: { take: 1, include: { team: { select: { name: true } } } } },
@@ -144,7 +155,7 @@ async function getData(userId: string) {
   for (const member of memberDetails as MemberDetail[]) {
     memberMap.set(member.id, member)
   }
-  const topMembers: MemberRow[] = topMemberGroups
+  const topMembers: MemberRow[] = typedTopMemberGroups
     .filter((g: TopMemberGroup) => g._avg.averageScore != null)
     .map((g: TopMemberGroup, i: number) => {
       const m = memberMap.get(g.memberId)
@@ -165,7 +176,7 @@ async function getData(userId: string) {
       pendingReviews,
     },
     teamScores,
-    statusDistribution: statusGroups.map((g: StatusGroup) => ({ status: g.status as string, count: g._count.id })),
+    statusDistribution: typedStatusGroups.map((g: StatusGroup) => ({ status: g.status as string, count: g._count.id })),
     trendData,
     trendTeams: teamNames,
     topMembers,

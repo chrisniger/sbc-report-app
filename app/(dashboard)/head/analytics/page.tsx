@@ -7,6 +7,23 @@ import type { TrendPoint } from '@/components/charts/ScoreTrendChart'
 import type { MemberRow } from '@/components/charts/MemberScoreTable'
 import type { PastorBarEntry } from '@/components/charts/PastorGroupedBar'
 
+// ── Explicit result types ──
+interface TrendReport {
+  reportMonth: number
+  reportYear: number
+  serviceTeam: { name: string }
+  memberGrades: TrendMemberGrade[]
+}
+interface TrendMemberGrade { averageScore: number | null }
+interface TopMemberGroup { memberId: string; _avg: { averageScore: number | null }; _count: { id: number } }
+interface StatusGroup { status: string; _count: { id: number } }
+interface PastorSource {
+  pastorName: string
+  serviceTeams: PastorTeam[]
+}
+interface PastorTeam { id: string; name: string }
+interface MonthPoint { month: number; year: number; label: string }
+
 type MemberDetail = {
   id: string
   fullName: string
@@ -14,7 +31,7 @@ type MemberDetail = {
 }
 type TeamAverage = { name: string; avg: number }
 
-function build12Months() {
+function build12Months(): MonthPoint[] {
   const now = new Date()
   return Array.from({ length: 12 }, (_: unknown, i: number) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
@@ -59,7 +76,7 @@ async function getData() {
     }),
     prisma.hodReport.findMany({
       where: {
-        OR: months12.map((m: (typeof months12)[number]) => ({ reportMonth: m.month, reportYear: m.year })),
+        OR: months12.map((m: MonthPoint) => ({ reportMonth: m.month, reportYear: m.year })),
         status: { not: 'DRAFT' },
       },
       include: {
@@ -85,16 +102,14 @@ async function getData() {
     }),
   ])
 
-  type TrendReport = (typeof trendReports)[number]
-  type TrendMemberGrade = TrendReport['memberGrades'][number]
-  type MonthPoint = (typeof months12)[number]
-  type TopMemberGroup = (typeof topMemberGroups)[number]
-  type StatusGroup = (typeof statusGroups)[number]
-  type PastorSource = (typeof pastors)[number]
-  type PastorTeam = PastorSource['serviceTeams'][number]
+  // Assert types from Promise.all (strict TS needs explicit casts)
+  const typedTrendReports = trendReports as TrendReport[]
+  const typedTopMemberGroups = topMemberGroups as TopMemberGroup[]
+  const typedStatusGroups = statusGroups as StatusGroup[]
+  const typedPastors = pastors as PastorSource[]
 
   // Team scores current month
-  const currentReports = trendReports.filter((r: TrendReport) => r.reportMonth === month && r.reportYear === year)
+  const currentReports = typedTrendReports.filter((r: TrendReport) => r.reportMonth === month && r.reportYear === year)
   const teamScoreMap = new Map<string, { scores: number[] }>()
   for (const r of currentReports) {
     if (!teamScoreMap.has(r.serviceTeam.name)) teamScoreMap.set(r.serviceTeam.name, { scores: [] })
@@ -114,7 +129,7 @@ async function getData() {
 
   // Top 5 teams for trend
   const allTeamMap = new Map<string, number[]>()
-  for (const r of trendReports) {
+  for (const r of typedTrendReports) {
     if (!allTeamMap.has(r.serviceTeam.name)) allTeamMap.set(r.serviceTeam.name, [])
     for (const g of r.memberGrades) {
       if (g.averageScore != null) allTeamMap.get(r.serviceTeam.name)!.push(g.averageScore)
@@ -129,7 +144,7 @@ async function getData() {
   const trendData: TrendPoint[] = months12.map((m: MonthPoint) => {
     const point: TrendPoint = { label: m.label }
     for (const teamName of top5Teams) {
-      const scores = trendReports
+      const scores = typedTrendReports
         .filter((r: TrendReport) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.name === teamName)
         .flatMap((r: TrendReport) => r.memberGrades.map((g: TrendMemberGrade) => g.averageScore).filter((s: unknown): s is number => s != null))
       point[teamName] = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
@@ -138,7 +153,7 @@ async function getData() {
   })
 
   // Top members
-  const memberIds = topMemberGroups.map((g: TopMemberGroup) => g.memberId)
+  const memberIds = typedTopMemberGroups.map((g: TopMemberGroup) => g.memberId)
   const memberDetails = await prisma.serviceTeamMember.findMany({
     where: { id: { in: memberIds } },
     include: { teamAssignments: { take: 1, include: { team: { select: { name: true } } } } },
@@ -147,7 +162,7 @@ async function getData() {
   for (const member of memberDetails as MemberDetail[]) {
     memberMap.set(member.id, member)
   }
-  const topMembers: MemberRow[] = topMemberGroups
+  const topMembers: MemberRow[] = typedTopMemberGroups
     .filter((g: TopMemberGroup) => g._avg.averageScore != null)
     .map((g: TopMemberGroup, i: number) => {
       const m = memberMap.get(g.memberId)
@@ -162,16 +177,16 @@ async function getData() {
 
   // Pastor grouped bar — teams by pastor, avg score current month
   const allPastorTeams = [...new Set(
-    pastors.flatMap((p: PastorSource) => p.serviceTeams.map((t: PastorTeam) => t.name))
+    typedPastors.flatMap((p: PastorSource) => p.serviceTeams.map((t: PastorTeam) => t.name))
   )]
-  const pastorGroupData: PastorBarEntry[] = pastors
+  const pastorGroupData: PastorBarEntry[] = typedPastors
     .filter((p: PastorSource) => p.serviceTeams.length > 0)
     .map((p: PastorSource) => {
       const entry: PastorBarEntry = {
         pastorName: p.pastorName,
         displayName: p.pastorName.split(' ')[0],
       }
-      for (const team of p.serviceTeams as PastorTeam[]) {
+      for (const team of p.serviceTeams) {
         const teamData = teamScoreMap.get(team.name)
         const scores = teamData?.scores ?? []
         entry[team.name] = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
@@ -192,7 +207,7 @@ async function getData() {
       submissionRate: activeTeams > 0 ? Math.round((thisMonthCount / activeTeams) * 100) : 0,
     },
     teamScores,
-    statusDistribution: statusGroups.map((g: StatusGroup) => ({ status: g.status as string, count: g._count.id })),
+    statusDistribution: typedStatusGroups.map((g: StatusGroup) => ({ status: g.status as string, count: g._count.id })),
     trendData,
     trendTeams: top5Teams,
     topMembers,
