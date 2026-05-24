@@ -12,15 +12,21 @@ export const NAV_CONFIG: Record<string, NavItem[]> = {
     { label: 'Analytics & Reports', href: '/admin/analytics', iconName: 'BarChart2', section: 'Main' },
     { label: 'All Reports', href: '/admin/reports', iconName: 'FileText', section: 'Management' },
     { label: 'Team Members', href: '/admin/members', iconName: 'Users', section: 'Management' },
+    { label: 'Service Teams', href: '/admin/teams', iconName: 'Users', section: 'Management' },
     { label: 'User Management', href: '/admin/users', iconName: 'UserCog', section: 'Management' },
     { label: 'Settings & SMTP', href: '/admin/settings', iconName: 'Settings', section: 'System' },
     { label: 'Backup & Restore', href: '/admin/backup', iconName: 'HardDrive', section: 'System' },
   ],
+  PASTOR: [
+    { label: 'Dashboard', href: '/head', iconName: 'LayoutDashboard', section: 'Main' },
+    { label: 'Analytics', href: '/head/analytics', iconName: 'BarChart2', section: 'Main' },
+    { label: 'All Reports', href: '/head/reports', iconName: 'FileText', section: 'Reports' },
+    { label: 'Service Teams', href: '/head/teams', iconName: 'Users', section: 'Teams' },
+  ],
   HEAD_OF_SUPERVISOR: [
     { label: 'Dashboard', href: '/head', iconName: 'LayoutDashboard', section: 'Main' },
     { label: 'Analytics', href: '/head/analytics', iconName: 'BarChart2', section: 'Main' },
-    { label: 'All Reports', href: '/head/reports', iconName: 'FileText', section: 'Reviews' },
-    { label: 'Submit Review', href: '/head/review', iconName: 'ClipboardCheck', section: 'Reviews' },
+    { label: 'All Reports', href: '/head/reports', iconName: 'FileText', section: 'Reports' },
     { label: 'Service Teams', href: '/head/teams', iconName: 'Users', section: 'Teams' },
   ],
   SUPERVISOR_PASTOR: [

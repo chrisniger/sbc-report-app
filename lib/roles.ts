@@ -1,5 +1,6 @@
 export const ROLES = {
   ADMIN: 'ADMIN',
+  PASTOR: 'PASTOR',
   HEAD_OF_SUPERVISOR: 'HEAD_OF_SUPERVISOR',
   SUPERVISOR_PASTOR: 'SUPERVISOR_PASTOR',
   HOD: 'HOD',
@@ -10,6 +11,7 @@ export type Role = (typeof ROLES)[keyof typeof ROLES]
 // Routes accessible by each role (role → path prefixes it can access)
 export const ROLE_ROUTES: Record<Role, string[]> = {
   ADMIN: ['/admin', '/dashboard', '/reports', '/teams', '/members', '/settings'],
+  PASTOR: ['/head', '/dashboard', '/reports', '/reviews/head', '/teams', '/members'],
   HEAD_OF_SUPERVISOR: ['/head', '/dashboard', '/reports', '/reviews/head', '/teams', '/members'],
   SUPERVISOR_PASTOR: ['/pastor', '/dashboard', '/reports', '/reviews/pastor', '/teams', '/members'],
   HOD: ['/hod', '/dashboard', '/reports/my', '/teams/my', '/members'],
@@ -30,13 +32,26 @@ export const PERMISSIONS: Record<Role, Record<string, boolean>> = {
     manageTeams: true,
     manageMembers: true,
   },
+  PASTOR: {
+    manageUsers: false,
+    viewAllReports: true,
+    viewAllReviews: true,
+    submitReport: false,
+    submitPastorReview: false,
+    submitHeadReview: false,
+    manageSettings: false,
+    lockReportPeriods: false,
+    viewActivityLogs: false,
+    manageTeams: false,
+    manageMembers: false,
+  },
   HEAD_OF_SUPERVISOR: {
     manageUsers: false,
     viewAllReports: true,
     viewAllReviews: true,
     submitReport: false,
     submitPastorReview: false,
-    submitHeadReview: true,
+    submitHeadReview: false,
     manageSettings: false,
     lockReportPeriods: false,
     viewActivityLogs: false,
@@ -86,6 +101,7 @@ export function can(userRoles: string[], permission: string): boolean {
 // Ordered from most to least privileged — used for display/fallback logic
 export const ROLE_HIERARCHY: Role[] = [
   ROLES.ADMIN,
+  ROLES.PASTOR,
   ROLES.HEAD_OF_SUPERVISOR,
   ROLES.SUPERVISOR_PASTOR,
   ROLES.HOD,

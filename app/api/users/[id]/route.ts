@@ -12,7 +12,7 @@ const updateUserSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional().or(z.literal('')),
   password: z.string().min(8).optional().or(z.literal('')),
-  roles: z.array(z.enum(['ADMIN', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD'])).min(1).optional(),
+  roles: z.array(z.enum(['ADMIN', 'PASTOR', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD'])).min(1).optional(),
   teamIds: z.array(z.string()).optional(),
   supervisorId: z.string().optional().or(z.literal('')),
   headId: z.string().optional().or(z.literal('')),

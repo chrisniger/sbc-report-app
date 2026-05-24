@@ -13,7 +13,6 @@ export interface ReportRecord {
   status: string
   hodName: string
   totalMembersEnrolled: number
-  totalMembersPresent: number | null
   submittedAt: string | null
   serviceTeam: { id: string; name: string }
   hodProfile: { id: string; hodName: string }
@@ -51,8 +50,8 @@ const YEARS = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR - 2 + i)
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Draft',
   SUBMITTED: 'Submitted',
-  PASTOR_REVIEWED: 'Pastor Reviewed',
-  HEAD_REVIEWED: 'Head Reviewed',
+  PASTOR_REVIEWED: 'Supervising Pastor Reviewed',
+  HEAD_REVIEWED: 'Committee Reviewed',
   COMPLETED: 'Completed',
 }
 
@@ -145,8 +144,8 @@ export default function ReportsAdminClient({ initialReports, stats, teams, pasto
         {[
           { label: 'Total', value: stats.total, color: 'text-sbc-black dark:text-white' },
           { label: 'Submitted', value: stats.submitted, color: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Pastor Reviewed', value: stats.pastorReviewed, color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Head Reviewed', value: stats.headReviewed, color: 'text-purple-600 dark:text-purple-400' },
+          { label: 'Supervising Pastor Reviewed', value: stats.pastorReviewed, color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Committee Reviewed', value: stats.headReviewed, color: 'text-purple-600 dark:text-purple-400' },
           { label: 'Pending Review', value: stats.pending, color: 'text-sbc-red' },
         ].map((s) => (
           <div key={s.label} className="bg-white dark:bg-zinc-800 rounded-lg p-4 shadow-sm text-center">
@@ -212,7 +211,7 @@ export default function ReportsAdminClient({ initialReports, stats, teams, pasto
             <thead>
               <tr className="border-b border-sbc-grey dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60">
                 <th className="w-8" />
-                {['Team', 'HOD', 'Period', 'Avg Score', 'Status', 'Submitted', 'Actions'].map((h) => (
+                {['Team', 'HOSTs', 'Period', 'Avg Score', 'Status', 'Submitted', 'Actions'].map((h) => (
                   <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium whitespace-nowrap">
                     {h}
                   </th>

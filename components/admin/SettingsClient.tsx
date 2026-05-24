@@ -88,9 +88,16 @@ const EVENTS = ['HOD_REPORT_SUBMITTED','PASTOR_REVIEW_COMPLETED','HEAD_REVIEW_CO
 const FIELD_TYPES = ['text','textarea','select','radio','checkbox','number']
 const FORM_NAMES = ['HOD_REPORT','PASTOR_REVIEW','MEMBER_FORM'] as const
 const FORM_LABELS: Record<string, string> = {
-  HOD_REPORT: 'HOD Report Form',
+  HOD_REPORT: 'HOSTs Report Form',
   PASTOR_REVIEW: 'Pastor Review Form',
   MEMBER_FORM: 'Member Form',
+}
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admin',
+  PASTOR: 'Pastor',
+  HEAD_OF_SUPERVISOR: 'Committee',
+  SUPERVISOR_PASTOR: 'Supervising Pastor',
+  HOD: 'HOSTs',
 }
 
 // ─── TAB 1: SMTP ─────────────────────────────────────────────────────────────
@@ -382,7 +389,7 @@ function NotificationsTab({ initialData, teams }: { initialData: NotifRecord[]; 
           <p className="text-sm text-gray-500 dark:text-gray-400">{records.length} recipient rule{records.length !== 1 ? 's' : ''} configured</p>
           <button
             onClick={() => setModalRecord('new')}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-all duration-150"
+            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-colors"
           >
             <Plus size={13} />
             Add Recipient
@@ -474,7 +481,7 @@ function PeriodsTab({ initialData }: { initialData: PeriodRecord[] }) {
     const res = await fetch(`/api/settings/periods/${id}/remind`, { method: 'POST' })
     const json = await res.json()
     setReminding(null)
-    if (res.ok) toast('success', `Reminders sent to ${json.sent} HOD(s)`)
+    if (res.ok) toast('success', `Reminders sent to ${json.sent} HOST(s)`)
     else toast('error', json.error ?? 'Failed to send reminders')
   }
 
@@ -512,7 +519,7 @@ function PeriodsTab({ initialData }: { initialData: PeriodRecord[] }) {
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-all duration-150"
+            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-colors"
           >
             <Plus size={13} />
             Add Period
@@ -618,7 +625,7 @@ function FieldModal({
       fieldType: (field?.fieldType as z.infer<typeof fieldSchema>['fieldType']) ?? 'text',
       fieldOptions: field?.fieldOptions ?? '',
       isRequired: field?.isRequired ?? false,
-      visibleToRoles: field ? JSON.parse(field.visibleToRoles) as string[] : ['ADMIN','HEAD_OF_SUPERVISOR','SUPERVISOR_PASTOR','HOD'],
+      visibleToRoles: field ? JSON.parse(field.visibleToRoles) as string[] : ['ADMIN','PASTOR','HEAD_OF_SUPERVISOR','SUPERVISOR_PASTOR','HOD'],
     },
   })
 
@@ -648,7 +655,7 @@ function FieldModal({
     } as FieldRecord)
   }
 
-  const ALL_ROLES = ['ADMIN','HEAD_OF_SUPERVISOR','SUPERVISOR_PASTOR','HOD']
+  const ALL_ROLES = ['ADMIN','PASTOR','HEAD_OF_SUPERVISOR','SUPERVISOR_PASTOR','HOD']
 
   return (
     <Modal title={isEdit ? 'EDIT FIELD' : 'ADD FIELD'} onClose={onClose}>
@@ -681,7 +688,7 @@ function FieldModal({
               {ALL_ROLES.map((role) => (
                 <label key={role} className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" value={role} {...register('visibleToRoles')} className="accent-sbc-red" />
-                  <span className="text-sm text-sbc-black dark:text-white">{role.replace(/_/g, ' ')}</span>
+                  <span className="text-sm text-sbc-black dark:text-white">{ROLE_LABELS[role] ?? role.replace(/_/g, ' ')}</span>
                 </label>
               ))}
             </div>
@@ -775,7 +782,7 @@ function FormFieldList({
         <p className="text-sm text-gray-500 dark:text-gray-400">{sorted.length} custom field{sorted.length !== 1 ? 's' : ''}</p>
         <button
           onClick={() => setEditField('new')}
-          className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-all duration-150"
+          className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-colors"
         >
           <Plus size={13} />
           Add Field
@@ -809,7 +816,7 @@ function FormFieldList({
                     <span className={`text-xs ${f.isRequired ? 'text-sbc-red font-medium' : 'text-gray-400'}`}>{f.isRequired ? 'Yes' : 'No'}</span>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
-                    {(JSON.parse(f.visibleToRoles) as string[]).map((r) => r.replace(/_/g, ' ')).join(', ')}
+                    {(JSON.parse(f.visibleToRoles) as string[]).map((r) => ROLE_LABELS[r] ?? r.replace(/_/g, ' ')).join(', ')}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">

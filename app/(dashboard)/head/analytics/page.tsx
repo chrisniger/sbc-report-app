@@ -185,7 +185,8 @@ async function getData() {
 
 export default async function HeadAnalyticsPage() {
   const session = await auth()
-  if (!session?.user?.roles?.includes('HEAD_OF_SUPERVISOR')) redirect('/dashboard')
+  const roles = session?.user?.roles ?? []
+  if (!roles.includes('HEAD_OF_SUPERVISOR') && !roles.includes('PASTOR')) redirect('/dashboard')
 
   const data = await getData()
 

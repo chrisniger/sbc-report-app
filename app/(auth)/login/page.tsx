@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import Image from 'next/image'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,6 +15,14 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-sbc-black" />}>
+      <LoginContent />
+    </Suspense>
+  )
+}
+
+function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const passwordChanged = searchParams.get('changed') === '1'
@@ -55,15 +64,15 @@ export default function LoginPage() {
         </span>
 
         {/* Badge */}
-        <div className="relative z-10 mb-8 bg-white px-8 py-4 shadow-2xl">
-          <span className="font-heading text-sbc-red text-6xl tracking-widest leading-none">SBC</span>
+        <div className="relative z-10 mb-8 h-20 w-20 rounded-lg bg-white shadow-[0_16px_35px_rgba(255,255,255,0.35)]">
+          <Image src="/images/logo.png" alt="SBC Logo" fill sizes="80px" className="object-contain p-1.5" priority />
         </div>
 
         <h1 className="relative z-10 font-heading text-white text-5xl tracking-widest text-center leading-tight">
           THE SUMMIT<br />BIBLE CHURCH
         </h1>
         <p className="relative z-10 mt-5 text-white/70 text-center text-sm leading-relaxed">
-          Service Team Management &amp;<br />Monthly Report System
+          SBC Reporting System
         </p>
       </div>
 
@@ -71,8 +80,8 @@ export default function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-sbc-black px-8 py-12">
         {/* Mobile badge */}
         <div className="flex justify-center mb-8 lg:hidden">
-          <div className="bg-sbc-red px-5 py-2">
-            <span className="font-heading text-white text-3xl tracking-widest">SBC</span>
+          <div className="relative h-14 w-14 rounded-lg bg-white shadow-[0_12px_24px_rgba(255,255,255,0.22)]">
+            <Image src="/images/logo.png" alt="SBC Logo" fill sizes="56px" className="object-contain p-1" priority />
           </div>
         </div>
 

@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof periodSchema>
   try {
     body = periodSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/settings/periods] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 

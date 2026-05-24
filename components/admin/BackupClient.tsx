@@ -23,6 +23,17 @@ interface Props {
   activityLogs: ActivityEntry[]
 }
 
+interface ReportsCsvImportResult {
+  success: boolean
+  reportsCreated: number
+  reportsUpdated: number
+  memberGradesImported: number
+  pastorReviewsImported: number
+  committeeReviewsImported: number
+  skipped: { group: string; reason: string }[]
+  error?: string
+}
+
 const MONTHS_FULL = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
@@ -124,7 +135,7 @@ function ReportsExportCard() {
         <div>
           <h3 className="font-heading text-xl text-sbc-black dark:text-white tracking-widest">REPORTS EXPORT</h3>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Export submitted HOD reports and pastor reviews as an Excel workbook with multiple sheets.
+            Export submitted HOSTs reports and pastor reviews as an Excel workbook with multiple sheets.
           </p>
         </div>
       </div>
@@ -155,6 +166,121 @@ function ReportsExportCard() {
 }
 
 // ─── Restore Card ─────────────────────────────────────────────────────────────
+
+function ReportsCsvImportCard() {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<ReportsCsvImportResult | null>(null)
+
+  function downloadTemplate() {
+    const a = document.createElement('a')
+    a.href = '/api/backup/reports-csv'
+    a.download = 'sbc-full-report-import-template.csv'
+    a.click()
+  }
+
+  async function importReportsCsv() {
+    if (!file) return
+    setLoading(true)
+    setResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/backup/reports-csv', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) {
+        const message = json.error ?? 'CSV import failed'
+        setResult({ success: false, reportsCreated: 0, reportsUpdated: 0, memberGradesImported: 0, pastorReviewsImported: 0, committeeReviewsImported: 0, skipped: [], error: message })
+        toast('error', message)
+      } else {
+        setResult(json)
+        toast('success', 'Reports CSV imported')
+      }
+    } catch {
+      const message = 'CSV import failed - network error'
+      setResult({ success: false, reportsCreated: 0, reportsUpdated: 0, memberGradesImported: 0, pastorReviewsImported: 0, committeeReviewsImported: 0, skipped: [], error: message })
+      toast('error', message)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-5 space-y-4">
+      <div className="flex items-start gap-3">
+        <FileUp size={28} className="text-emerald-500 shrink-0 mt-0.5" />
+        <div>
+          <h3 className="font-heading text-xl text-sbc-black dark:text-white tracking-widest">REPORTS CSV IMPORT</h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Upload full report data, including HOSTs report fields, member grades, Supervising Pastor reviews, and Committee reviews.
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={downloadTemplate}
+        className="flex items-center gap-2 px-4 py-2 border border-sbc-grey dark:border-white/10 text-sm font-medium rounded text-sbc-black dark:text-white hover:border-sbc-red/50 transition-colors"
+      >
+        <Download size={14} />
+        Download CSV Template
+      </button>
+
+      <div
+        onClick={() => fileRef.current?.click()}
+        className="border-2 border-dashed border-sbc-grey dark:border-white/10 rounded-lg p-5 text-center cursor-pointer hover:border-emerald-500/50 transition-colors"
+      >
+        <FileUp size={22} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+        {file ? (
+          <p className="text-sm text-sbc-black dark:text-white font-medium">{file.name}</p>
+        ) : (
+          <p className="text-sm text-gray-400">Click to select a .csv report file</p>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }}
+        />
+      </div>
+
+      {result && (
+        <div className={`p-3 rounded text-xs ${result.success ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-50 dark:bg-red-900/20 text-sbc-red'}`}>
+          {result.success ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 font-medium"><CheckCircle size={13} /> Import completed</div>
+              <p>Reports created: {result.reportsCreated}</p>
+              <p>Reports updated: {result.reportsUpdated}</p>
+              <p>Member grades imported: {result.memberGradesImported}</p>
+              <p>Supervising Pastor reviews imported: {result.pastorReviewsImported}</p>
+              <p>Committee reviews imported: {result.committeeReviewsImported}</p>
+              {result.skipped.length > 0 && (
+                <div className="pt-1 text-amber-700 dark:text-amber-300">
+                  <p className="font-medium">Skipped: {result.skipped.length}</p>
+                  {result.skipped.slice(0, 3).map((item) => (
+                    <p key={`${item.group}-${item.reason}`}>{item.group}: {item.reason}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p>{result.error}</p>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={importReportsCsv}
+        disabled={!file || loading}
+        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />}
+        Import Reports CSV
+      </button>
+    </div>
+  )
+}
 
 function RestoreCard() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -365,6 +491,7 @@ export default function BackupClient({ lastBackupAt, activityLogs }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <FullBackupCard lastBackupAt={lastBackupAt} />
         <ReportsExportCard />
+        <ReportsCsvImportCard />
         <RestoreCard />
       </div>
       <ActivityLogCard logs={activityLogs} />

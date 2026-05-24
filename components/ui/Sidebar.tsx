@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard, BarChart2, FileText, Users, UserCog, Settings,
-  HardDrive, ClipboardCheck, FilePlus, History, LogOut,
+  HardDrive, ClipboardCheck, FilePlus, History, LogOut, ChevronDown,
 } from 'lucide-react'
 import { NAV_CONFIG } from '@/lib/nav-config'
 import type { Role } from '@/lib/roles'
@@ -30,9 +30,19 @@ interface SidebarProps {
   userInitials: string
   userRole: string
   badgeCounts?: Record<string, number>
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export default function Sidebar({ role, userName, userInitials, userRole, badgeCounts = {} }: SidebarProps) {
+export default function Sidebar({
+  role,
+  userName,
+  userInitials,
+  userRole,
+  badgeCounts = {},
+  isOpen = false,
+  onClose,
+}: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [logoError, setLogoError] = useState(false)
@@ -52,52 +62,70 @@ export default function Sidebar({ role, userName, userInitials, userRole, badgeC
 
   const roleLabel: Record<string, string> = {
     ADMIN: 'Administrator',
-    HEAD_OF_SUPERVISOR: 'Head of Supervisor',
-    SUPERVISOR_PASTOR: 'Supervisor Pastor',
-    HOD: 'Head of Department',
+    PASTOR: 'Pastor',
+    HEAD_OF_SUPERVISOR: 'Committee',
+    SUPERVISOR_PASTOR: 'Supervising Pastor',
+    HOD: 'HOSTs',
+  }
+
+  const handleNavClick = () => {
+    onClose?.()
   }
 
   return (
-    <div className="flex flex-col w-[220px] min-h-screen bg-sbc-black border-r border-white/10 shrink-0">
+    <div
+      className={`
+        fixed inset-y-0 left-0 z-50 flex flex-col w-[270px] bg-white border-r border-[#e5e7eb]
+        shadow-[18px_0_50px_rgba(15,23,42,0.05)] backdrop-blur-xl
+        dark:bg-[#0b0d15]/95 dark:border-sbc-red/20 dark:shadow-[18px_0_70px_rgba(200,16,46,0.1)]
+        transition-transform duration-300 ease-in-out
+        md:static md:translate-x-0 md:z-auto md:shrink-0
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-[18px] border-b border-white/10">
+      <div className="flex items-center gap-4 px-7 py-7 border-b border-[#edf0f5] dark:border-sbc-red/20">
         {!logoError ? (
-          <div className="relative w-9 h-9 shrink-0">
+          <div className="relative w-12 h-12 shrink-0 rounded-xl shadow-[0_12px_24px_rgba(200,16,46,0.16)] dark:shadow-[0_14px_30px_rgba(255,255,255,0.16)]">
             <Image
               src="/images/logo.png"
               alt="SBC Logo"
               fill
-              className="object-contain"
+              sizes="48px"
+              className="object-contain drop-shadow-[0_7px_10px_rgba(200,16,46,0.12)] dark:drop-shadow-[0_8px_12px_rgba(255,255,255,0.18)]"
               onError={() => setLogoError(true)}
             />
           </div>
         ) : (
-          <div className="w-9 h-9 bg-sbc-red flex items-center justify-center shrink-0">
-            <span className="font-heading text-white text-sm leading-none">SBC</span>
+          <div className="w-12 h-12 rounded-lg bg-sbc-red flex items-center justify-center shrink-0 shadow-lg shadow-sbc-red/25">
+            <span className="font-heading text-white text-2xl leading-none">SBC</span>
           </div>
         )}
         <div>
-          <div className="font-heading text-white text-sm tracking-widest leading-tight">SUMMIT BIBLE</div>
-          <div className="text-white/40 text-[10px] uppercase tracking-wider leading-tight">Report System</div>
+          <div className="font-heading text-slate-900 dark:text-white text-xl tracking-widest leading-tight">SUMMIT BIBLE</div>
+          <div className="text-sbc-red text-xs uppercase tracking-wider leading-tight font-semibold">Report System</div>
         </div>
       </div>
 
       {/* User badge */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
-        <div className="w-9 h-9 rounded-full bg-sbc-red flex items-center justify-center shrink-0">
-          <span className="font-heading text-white text-sm leading-none">{userInitials}</span>
+      <div className="px-4 py-6">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#edf0f5] bg-white px-4 py-4 shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:rounded-lg dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="w-11 h-11 rounded-full bg-sbc-red flex items-center justify-center shrink-0 shadow-md shadow-sbc-red/20">
+          <span className="font-heading text-white text-xl leading-none">{userInitials}</span>
         </div>
-        <div className="min-w-0">
-          <div className="text-white text-xs font-medium truncate">{userName}</div>
-          <div className="text-white/40 text-[10px] truncate">{roleLabel[userRole] ?? userRole}</div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[#111827] dark:text-white text-sm font-semibold truncate">{userName}</div>
+          <div className="text-[#475569] dark:text-white/45 text-xs truncate">{roleLabel[userRole] ?? userRole}</div>
+        </div>
+        <ChevronDown size={16} className="text-slate-500 dark:text-white/55" />
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3">
+      <nav className="flex-1 overflow-y-auto px-3 pb-3">
         {Object.entries(sections).map(([section, items]) => (
-          <div key={section} className="mb-4">
-            <div className="px-4 py-1 text-white/30 text-[10px] uppercase tracking-widest font-medium">
+          <div key={section} className="mb-6">
+            <div className="px-3 py-2 text-sbc-red dark:text-sbc-red/80 text-xs uppercase tracking-widest font-bold">
               {section}
             </div>
             {items.map((item) => {
@@ -107,13 +135,14 @@ export default function Sidebar({ role, userName, userInitials, userRole, badgeC
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 mx-2 px-3 py-2 rounded text-sm transition-colors ${
+                  onClick={handleNavClick}
+                  className={`flex items-center gap-4 px-4 py-3 rounded-lg text-sm font-semibold transition-colors ${
                     isActive
-                      ? 'text-white bg-white/10 border-l-2 border-sbc-red pl-[10px]'
-                      : 'text-white/60 hover:text-white hover:bg-white/5'
+                      ? 'text-sbc-red bg-[#fff1f2] border-l-2 border-sbc-red pl-[14px] dark:text-white dark:bg-sbc-red/15'
+                      : 'text-[#475569] hover:text-sbc-red hover:bg-[#fff7f8] dark:text-white/65 dark:hover:text-white dark:hover:bg-white/5'
                   }`}
                 >
-                  <span className="shrink-0">{ICON_MAP[item.iconName]}</span>
+                  <span className="shrink-0 text-current">{ICON_MAP[item.iconName]}</span>
                   <span className="flex-1 truncate">{item.label}</span>
                   {badge != null && badge > 0 && (
                     <span className="bg-sbc-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
@@ -128,12 +157,12 @@ export default function Sidebar({ role, userName, userInitials, userRole, badgeC
       </nav>
 
       {/* Sign out */}
-      <div className="border-t border-white/10 p-3">
+      <div className="border-t border-[#edf0f5] dark:border-white/10 p-4">
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded text-white/60 hover:text-white hover:bg-white/5 transition-colors text-sm"
+          className="flex items-center gap-4 w-full px-4 py-3 rounded-xl border border-[#e5e7eb] bg-white text-[#111827] shadow-sm hover:text-sbc-red hover:border-sbc-red/30 hover:bg-[#fff7f8] transition-colors text-sm font-semibold dark:rounded-lg dark:border-white/10 dark:bg-transparent dark:text-white/70 dark:hover:text-white dark:hover:bg-white/5"
         >
-          <LogOut size={15} />
+          <LogOut size={18} className="text-sbc-red" />
           <span>Sign Out</span>
         </button>
       </div>

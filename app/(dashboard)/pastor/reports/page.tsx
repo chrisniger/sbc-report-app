@@ -3,11 +3,12 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 1 + i)
 
-interface SearchParams { month?: string; year?: string }
+interface SearchParams { month?: string; year?: string; team?: string }
 
 export default async function PastorReportsPage({
   searchParams,
@@ -21,17 +22,22 @@ export default async function PastorReportsPage({
   const filterMonth = params.month ? parseInt(params.month) : undefined
   const filterYear = params.year ? parseInt(params.year) : undefined
 
-  const pastorProfile = await prisma.pastorProfile.findUnique({
-    where: { userId: session.user.id },
-    include: { serviceTeams: { select: { id: true } } },
-  })
-  if (!pastorProfile) redirect('/dashboard')
+  const scope = await getSupervisedPastorScope(session.user.id)
+  if (!scope) redirect('/dashboard')
 
-  const teamIds = pastorProfile.serviceTeams.map((t) => t.id)
+  const { hodIds, teamIds } = scope
+  const filterTeamId = params.team && teamIds.includes(params.team) ? params.team : undefined
+
+  const teams = await prisma.serviceTeam.findMany({
+    where: { id: { in: teamIds } },
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true },
+  })
 
   const reports = await prisma.hodReport.findMany({
     where: {
-      serviceTeamId: { in: teamIds },
+      hodProfileId: { in: hodIds },
+      serviceTeamId: filterTeamId ?? { in: teamIds },
       ...(filterMonth ? { reportMonth: filterMonth } : {}),
       ...(filterYear ? { reportYear: filterYear } : {}),
     },
@@ -85,13 +91,28 @@ export default async function PastorReportsPage({
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 font-medium">
+              Team
+            </label>
+            <select
+              name="team"
+              defaultValue={filterTeamId ?? ''}
+              className="px-3 py-1.5 text-sm bg-white dark:bg-zinc-700 border border-sbc-grey dark:border-white/10 rounded text-sbc-black dark:text-white focus:outline-none focus:border-sbc-red"
+            >
+              <option value="">All teams</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
             className="px-4 py-1.5 bg-sbc-red text-white text-sm rounded hover:bg-red-700 transition-colors"
           >
             Filter
           </button>
-          {(filterMonth || filterYear) && (
+          {(filterMonth || filterYear || filterTeamId) && (
             <Link
               href="/pastor/reports"
               className="px-4 py-1.5 border border-sbc-grey dark:border-white/10 text-sm text-gray-500 dark:text-gray-400 rounded hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors"
@@ -109,7 +130,7 @@ export default async function PastorReportsPage({
             <thead>
               <tr className="border-b border-sbc-grey dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60">
                 <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Team</th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">HOD</th>
+                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">HOSTs</th>
                 <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Period</th>
                 <th className="text-center px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden md:table-cell">
                   Avg Score
@@ -125,7 +146,7 @@ export default async function PastorReportsPage({
               {reports.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-16 text-center text-gray-400 text-sm">
-                    No reports found{filterMonth || filterYear ? ' for this filter' : ''}.
+                    No reports found{filterMonth || filterYear || filterTeamId ? ' for this filter' : ''}.
                   </td>
                 </tr>
               ) : (

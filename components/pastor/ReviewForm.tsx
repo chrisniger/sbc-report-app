@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -52,8 +53,6 @@ export interface ReportSummary {
   reportMonth: number
   reportYear: number
   totalMembersEnrolled: number
-  totalMembersPresent: number | null
-  totalMembersAbsent: number | null
   avgScore: number | null
 }
 
@@ -78,6 +77,7 @@ interface Props {
 }
 
 export default function ReviewForm({ reportId, pastorName, report, existingReview }: Props) {
+  const router = useRouter()
   const [pageStatus, setPageStatus] = useState<'idle' | 'saving' | 'submitting' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -127,7 +127,7 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
     if (!isDraft) {
       let hasError = false
       if (!values.comments?.trim()) {
-        setError('comments', { message: 'Comments are required' })
+        setError('comments', { message: 'Review is required' })
         hasError = true
       }
       if (!values.signature?.trim()) {
@@ -136,6 +136,10 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
       }
       if (!values.confirmed) {
         setError('confirmed', { message: 'Please confirm the information is accurate' })
+        hasError = true
+      }
+      if (!values.reviewDate) {
+        setError('reviewDate', { message: 'Date is required' })
         hasError = true
       }
       if (hasError) return
@@ -173,6 +177,9 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
         return
       }
       setPageStatus(isDraft ? 'idle' : 'success')
+      if (!isDraft) {
+        router.refresh()
+      }
     } catch {
       setErrorMsg('Network error. Check your connection and try again.')
       setPageStatus('error')
@@ -204,24 +211,24 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
       <section className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 bg-sbc-red">
           <h2 className="font-heading text-white text-xl tracking-widest">
-            SECTION A — REPORT REFERENCE
+            SECTION A — SUPERVISING PASTOR
           </h2>
         </div>
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <div>
-            <label className={labelCls}>Supervising Pastor</label>
+            <label className={labelCls}>Name of Supervising Pastor</label>
             <input readOnly value={pastorName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
+          </div>
+          <div>
+            <label className={labelCls}>HOSTs Name</label>
+            <input readOnly value={report.hodName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
           </div>
           <div>
             <label className={labelCls}>Service Team</label>
             <input readOnly value={report.serviceTeamName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
           </div>
           <div>
-            <label className={labelCls}>Head of Department</label>
-            <input readOnly value={report.hodName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
-          </div>
-          <div>
-            <label className={labelCls}>Report Period</label>
+            <label className={labelCls}>Month</label>
             <input
               readOnly
               value={`${MONTHS[report.reportMonth - 1]} ${report.reportYear}`}
@@ -235,8 +242,6 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
             <div className="flex flex-wrap gap-6 mt-1">
               {[
                 { label: 'Enrolled', val: report.totalMembersEnrolled },
-                { label: 'Present', val: report.totalMembersPresent ?? '—' },
-                { label: 'Absent', val: report.totalMembersAbsent ?? '—' },
               ].map(({ label, val }) => (
                 <div key={label} className="text-center min-w-[48px]">
                   <p className="text-2xl font-heading text-sbc-black dark:text-white">{val}</p>
@@ -259,79 +264,92 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
         </div>
       </section>
 
-      {/* ── SECTION B — HOD Evaluation ────────────────────────── */}
+      {/* ── SECTION B — HOSTs Evaluation ────────────────────────── */}
       <section className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 bg-sbc-black dark:bg-zinc-900 flex items-center justify-between">
+        <div className="px-6 py-4 bg-sbc-black dark:bg-zinc-900">
           <div>
             <h2 className="font-heading text-white text-xl tracking-widest">
-              SECTION B — HOD EVALUATION
+              SECTION B — SERVICE TEAM LEADERS&apos; PERFORMANCE ASSESSMENT
             </h2>
             <p className="text-white/50 text-xs mt-0.5">5 = Outstanding · 1 = Poor · N/A = Not Applicable</p>
           </div>
-          {liveAvg !== null && (
-            <span className={`text-sm font-bold ${
-              liveAvg >= 4 ? 'text-green-400'
-              : liveAvg >= 3 ? 'text-amber-400'
-              : 'text-red-400'
-            }`}>
-              Avg: {liveAvg.toFixed(1)}
-            </span>
-          )}
         </div>
-        <div className="p-6 overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: '580px' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ minWidth: '740px' }}>
             <thead>
-              <tr className="border-b border-sbc-grey dark:border-white/10">
-                <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-gray-500 font-medium w-36">
-                  {report.hodName}
+              <tr className="border-b border-sbc-grey dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60">
+                <th className="text-left px-4 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium w-44">
+                  Member
                 </th>
                 {HOD_GRADE_FIELDS.map(({ formKey, label }) => (
-                  <th key={formKey} className="text-center px-2 py-2 text-xs uppercase tracking-wider text-gray-500 font-medium">
+                  <th
+                    key={formKey}
+                    className="text-center px-1 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium"
+                    style={{ minWidth: '90px' }}
+                  >
                     {label}
                   </th>
                 ))}
+                <th className="text-center px-3 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium w-14">
+                  Avg
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="py-3 pr-4 text-xs text-gray-400">Evaluation</td>
+              <tr className="border-b border-sbc-grey/50 dark:border-white/5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
+                <td className="px-4 py-2 text-xs font-medium text-sbc-black dark:text-white">{report.hodName}</td>
                 {HOD_GRADE_FIELDS.map(({ formKey }) => (
-                  <td key={formKey} className="px-2 py-2 text-center">
+                  <td key={formKey} className="px-1 py-1.5 text-center">
                     <select
                       {...register(formKey)}
                       disabled={isAlreadySubmitted}
-                      className="w-full text-xs px-1 py-1.5 bg-white dark:bg-zinc-700 border border-sbc-grey dark:border-white/10 rounded focus:outline-none focus:border-sbc-red text-sbc-black dark:text-white appearance-none text-center disabled:opacity-70 disabled:cursor-not-allowed"
+                      className="w-full text-xs px-1 py-1.5 bg-white dark:bg-zinc-700 border border-sbc-grey dark:border-white/10 rounded focus:outline-none focus:border-sbc-red text-sbc-black dark:text-white text-center appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       {GRADE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        <option key={opt.value} value={opt.value}>{opt.label.split(' ')[0]}</option>
                       ))}
                     </select>
                   </td>
                 ))}
+                <td className="px-3 py-2 text-center">
+                  <span
+                    className={`text-xs font-bold ${
+                      liveAvg === null
+                        ? 'text-gray-400'
+                        : liveAvg >= 4
+                        ? 'text-green-600 dark:text-green-400'
+                        : liveAvg >= 3
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-sbc-red'
+                    }`}
+                  >
+                    {liveAvg !== null ? liveAvg.toFixed(1) : 'N/A'}
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      {/* ── SECTION C — Comments ──────────────────────────────── */}
+      {/* ── SECTION C — Review ────────────────────────────────── */}
       <section className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-sbc-grey dark:border-white/10">
           <h2 className="font-heading text-sbc-black dark:text-white text-xl tracking-widest">
-            SECTION C — COMMENTS
+            SECTION C — REVIEW BY SUPERVISING PASTOR
           </h2>
-          <p className="text-xs text-gray-400 mt-0.5">Private — not visible to HOD</p>
+          <p className="text-xs text-gray-400 mt-0.5">Visible to Pastor, committee &amp; HOSTs</p>
         </div>
         <div className="p-6 space-y-5">
           <div>
             <label className={labelCls}>
-              Comments <span className="text-sbc-red">*</span>
+              Review <span className="text-sbc-red">*</span>
             </label>
             <textarea
               {...register('comments')}
               rows={5}
               disabled={isAlreadySubmitted}
-              placeholder="Your observations and comments on this HOD's performance..."
+              placeholder="Your Review on this HOSTs Performance"
               className={`${inputCls} resize-none`}
             />
             {errors.comments && (
@@ -372,13 +390,18 @@ export default function ReviewForm({ reportId, pastorName, report, existingRevie
                 )}
               </div>
               <div>
-                <label className={labelCls}>Date</label>
+                <label className={labelCls}>
+                  Date <span className="text-sbc-red">*</span>
+                </label>
                 <input
                   {...register('reviewDate')}
                   type="date"
                   disabled={isAlreadySubmitted}
                   className={inputCls}
                 />
+                {errors.reviewDate && (
+                  <p className="text-sbc-red text-xs mt-1">{errors.reviewDate.message}</p>
+                )}
               </div>
             </div>
           </div>

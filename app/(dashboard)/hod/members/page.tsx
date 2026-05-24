@@ -3,9 +3,14 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import MembersClient from '@/components/hod/MembersClient'
 
-export default async function HodMembersPage() {
+interface HodMembersPageProps {
+  searchParams: Promise<{ add?: string | string[] | undefined }>
+}
+
+export default async function HodMembersPage({ searchParams }: HodMembersPageProps) {
   const session = await auth()
   if (!session?.user?.roles?.includes('HOD')) redirect('/dashboard')
+  const params = await searchParams
 
   const hodProfile = await prisma.hodProfile.findUnique({
     where: { userId: session.user.id },
@@ -47,6 +52,9 @@ export default async function HodMembersPage() {
       }))
       .sort((a, b) => a.fullName.localeCompare(b.fullName)),
   }))
+  const openAddMember = Array.isArray(params.add)
+    ? params.add.includes('1')
+    : params.add === '1'
 
-  return <MembersClient teams={teams} />
+  return <MembersClient teams={teams} openAddMember={openAddMember} />
 }

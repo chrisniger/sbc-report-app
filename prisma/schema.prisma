@@ -14,6 +14,7 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  PASTOR
   HEAD_OF_SUPERVISOR
   SUPERVISOR_PASTOR
   HOD
@@ -239,6 +240,20 @@ model HodReport {
   // Remarks
   generalObservations   String?     @db.Text
   challengesEncountered String?     @db.Text
+
+  // Structured report sections introduced after the original report format.
+  goalsForMonth         Json?
+  challengesForMonth    String?     @db.Text
+  goalsNextMonth        String?     @db.Text
+  serviceTeamNeeds      String?     @db.Text
+  budget                String?
+  budgetFinancing       String?
+  serviceTeamLeaderComments String? @db.Text
+  confirmation          Boolean     @default(false)
+  signature             String?
+  confirmationDate      DateTime?
+  currentStep           Int         @default(1)
+  naExplanation         String?     @db.Text
 
   // Confirmation
   hodSignature          String?

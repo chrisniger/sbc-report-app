@@ -109,18 +109,13 @@ const authConfig: NextAuthConfig = {
       // Require authentication for everything else
       if (!isLoggedIn) return false
 
-      // Force password change before accessing anything else
-      if (auth.user.mustChangePassword && path !== '/change-password') {
-        return Response.redirect(new URL('/change-password', nextUrl))
-      }
-
       // Role-based path gating
       const userRoles = auth.user.roles
       const dominant = primaryRole(userRoles)
       if (dominant) {
         const allowed = ROLE_ROUTES[dominant as Role]
         const pathAllowed = allowed.some((prefix) => path.startsWith(prefix))
-        if (!pathAllowed && path !== '/dashboard') {
+        if (!pathAllowed && path !== '/dashboard' && !path.startsWith('/api/')) {
           return Response.redirect(new URL('/dashboard', nextUrl))
         }
       }

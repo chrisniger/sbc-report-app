@@ -6,8 +6,8 @@ import { prisma } from '@/lib/db'
 const patchSchema = z.object({
   event: z.string().min(1).optional(),
   recipientEmail: z.string().email().optional(),
-  recipientName: z.string().optional().or(z.literal('')),
-  serviceTeamId: z.string().optional().or(z.literal('')),
+  recipientName: z.string().optional().nullable(),
+  serviceTeamId: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
 })
 
@@ -27,7 +27,8 @@ export async function PATCH(
   let body: z.infer<typeof patchSchema>
   try {
     body = patchSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[PATCH /api/settings/notifications/:id] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 

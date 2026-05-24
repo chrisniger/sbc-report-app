@@ -4,7 +4,8 @@ import { prisma } from '@/lib/db'
 
 export default async function HeadTeamsPage() {
   const session = await auth()
-  if (!session?.user?.roles?.includes('HEAD_OF_SUPERVISOR')) redirect('/dashboard')
+  const roles = session?.user?.roles ?? []
+  if (!roles.includes('HEAD_OF_SUPERVISOR') && !roles.includes('PASTOR')) redirect('/dashboard')
 
   const teams = await prisma.serviceTeam.findMany({
     orderBy: { name: 'asc' },
@@ -42,9 +43,9 @@ export default async function HeadTeamsPage() {
               <thead>
                 <tr className="border-b border-sbc-grey dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60">
                   <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Team</th>
-                  <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">HOD</th>
+                  <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">HOSTs</th>
                   <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden md:table-cell">
-                    Supervisor Pastor
+                    Supervising Pastor
                   </th>
                   <th className="text-center px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Members</th>
                   <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Status</th>

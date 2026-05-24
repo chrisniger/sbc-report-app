@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { notifyEvent } from '@/lib/mailer'
 import { Grade } from '@prisma/client'
+import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -32,11 +33,10 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const pastorProfile = await prisma.pastorProfile.findUnique({
-    where: { userId: session.user.id },
-    include: { serviceTeams: { select: { id: true } } },
-  })
-  if (!pastorProfile) return Response.json({ error: 'Pastor profile not found' }, { status: 404 })
+  const scope = await getSupervisedPastorScope(session.user.id)
+  if (!scope) return Response.json({ error: 'Pastor profile not found' }, { status: 404 })
+
+  const { pastorProfile, hodIds, teamIds } = scope
 
   let body: z.infer<typeof reviewBodySchema>
   try {
@@ -55,8 +55,7 @@ export async function POST(request: NextRequest) {
   })
   if (!report) return Response.json({ error: 'Report not found' }, { status: 404 })
 
-  const pastorTeamIds = pastorProfile.serviceTeams.map((t) => t.id)
-  if (!pastorTeamIds.includes(report.serviceTeamId)) {
+  if (!teamIds.includes(report.serviceTeamId) || !hodIds.includes(report.hodProfileId)) {
     return Response.json({ error: 'Not authorized for this report' }, { status: 403 })
   }
 

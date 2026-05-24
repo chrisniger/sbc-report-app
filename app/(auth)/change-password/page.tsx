@@ -1,10 +1,11 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { signOut } from 'next-auth/react'
 import { Eye, EyeOff, Loader2, Lock } from 'lucide-react'
+import { toast } from '@/components/ui/Toast'
 
 const schema = z
   .object({
@@ -20,9 +21,9 @@ const schema = z
 type FormData = z.infer<typeof schema>
 
 export default function ChangePasswordPage() {
+  const router = useRouter()
   const [show, setShow] = useState({ current: false, new: false, confirm: false })
   const [serverError, setServerError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
 
   const {
     register,
@@ -45,11 +46,8 @@ export default function ChangePasswordPage() {
       setServerError(body.error ?? 'Failed to change password')
       return
     }
-    setDone(true)
-    setTimeout(async () => {
-      await signOut({ redirect: false })
-      window.location.href = '/login?changed=1'
-    }, 1800)
+    toast('success', 'Password changed successfully!')
+    router.push('/dashboard')
   }
 
   const toggle = (field: 'current' | 'new' | 'confirm') =>
@@ -67,19 +65,13 @@ export default function ChangePasswordPage() {
 
         <div className="flex items-center gap-3 mb-2">
           <Lock size={18} className="text-sbc-red" />
-          <h1 className="font-heading text-white text-3xl tracking-widest">SET NEW PASSWORD</h1>
+          <h1 className="font-heading text-white text-3xl tracking-widest">CHANGE PASSWORD</h1>
         </div>
         <p className="text-white/40 text-sm mb-8">
-          You must set a new password before continuing.
+          Update your account password below.
         </p>
 
-        {done ? (
-          <div className="bg-green-600/15 border border-green-500/40 text-green-300 text-sm px-5 py-4 text-center space-y-1">
-            <p className="font-medium">Password changed successfully!</p>
-            <p className="text-green-300/70 text-xs">Redirecting to login…</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
             {/* Current password */}
             <div>
               <label className="block text-white/60 text-xs uppercase tracking-widest mb-2">
@@ -178,11 +170,10 @@ export default function ChangePasswordPage() {
                   UPDATING…
                 </>
               ) : (
-                'SET PASSWORD'
+                'CHANGE PASSWORD'
               )}
             </button>
           </form>
-        )}
       </div>
     </div>
   )

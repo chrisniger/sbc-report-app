@@ -7,7 +7,7 @@ const fieldSchema = z.object({
   formName: z.enum(['HOD_REPORT', 'PASTOR_REVIEW', 'MEMBER_FORM']),
   fieldLabel: z.string().min(1, 'Required'),
   fieldType: z.enum(['text', 'textarea', 'select', 'radio', 'checkbox', 'number']),
-  fieldOptions: z.string().optional().or(z.literal('')),
+  fieldOptions: z.string().optional().nullable(),
   isRequired: z.boolean().optional(),
   visibleToRoles: z.array(z.string()).optional(),
   fieldOrder: z.number().int().optional(),
@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof fieldSchema>
   try {
     body = fieldSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/settings/fields] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
         fieldType: body.fieldType,
         fieldOptions: body.fieldOptions?.trim() || null,
         isRequired: body.isRequired ?? false,
-        visibleToRoles: JSON.stringify(body.visibleToRoles ?? ['ADMIN', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD']),
+        visibleToRoles: JSON.stringify(body.visibleToRoles ?? ['ADMIN', 'PASTOR', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD']),
         fieldOrder: body.fieldOrder ?? nextOrder,
       },
     })

@@ -68,7 +68,7 @@ export default async function AdminReportsPage() {
           ALL REPORTS
         </h1>
         <p className="text-xs text-gray-400 mt-0.5">
-          View and filter all submitted HOD reports
+          View and filter all submitted HOSTs reports
         </p>
       </div>
 

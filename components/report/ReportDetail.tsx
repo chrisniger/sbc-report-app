@@ -16,12 +16,28 @@ export interface ReportData {
   reportYear: number
   status: string
   totalMembersEnrolled: number
-  totalMembersPresent: number | null
-  totalMembersAbsent: number | null
   generalObservations: string | null
   challengesEncountered: string | null
+  goalsForMonth: ReportGoal[]
+  challengesForMonth: string | null
+  goalsNextMonth: string | null
+  serviceTeamNeeds: string | null
+  budget: string | null
+  budgetFinancing: string | null
+  serviceTeamLeaderComments: string | null
+  confirmation: boolean
+  signature: string | null
+  confirmationDate: string | null
+  naExplanation: string | null
   hodSignature: string | null
   submittedAt: string | null
+}
+
+export interface ReportGoal {
+  goalNumber: number
+  goal: string
+  achieved: string
+  remarks: string | null
 }
 
 export interface MemberGradeRow {
@@ -64,6 +80,7 @@ interface Props {
   pastorReview?: PastorReviewRow | null
   headReview?: HeadReviewRow | null
   showPastorReview: boolean
+  showPastorReviewGrades?: boolean
   showHeadReview: boolean
 }
 
@@ -138,9 +155,16 @@ export default function ReportDetail({
   pastorReview,
   headReview,
   showPastorReview,
+  showPastorReviewGrades = true,
   showHeadReview,
 }: Props) {
   const period = `${MONTHS[report.reportMonth - 1]} ${report.reportYear}`
+  const hasNewSections =
+    report.goalsForMonth.length > 0 ||
+    Boolean(report.challengesForMonth) ||
+    Boolean(report.goalsNextMonth) ||
+    Boolean(report.serviceTeamNeeds) ||
+    Boolean(report.serviceTeamLeaderComments)
 
   return (
     <div className="space-y-5 print:space-y-4">
@@ -164,7 +188,7 @@ export default function ReportDetail({
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-3">
           <Field label="Service Team" value={report.serviceTeamName} />
           <Field label="Period" value={period} />
-          <Field label="Head of Department" value={report.hodName} />
+          <Field label="HOSTs" value={report.hodName} />
           <Field label="Report Status">
             <StatusBadge status={report.status} />
           </Field>
@@ -175,21 +199,75 @@ export default function ReportDetail({
             <Field label="Assistant 2" value={report.assistantTwo} />
           )}
           <Field label="Members Enrolled" value={String(report.totalMembersEnrolled)} />
-          <Field label="Members Present" value={report.totalMembersPresent != null ? String(report.totalMembersPresent) : '—'} />
-          <Field label="Members Absent" value={report.totalMembersAbsent != null ? String(report.totalMembersAbsent) : '—'} />
           {report.submittedAt && (
             <Field label="Submitted" value={fmtDate(report.submittedAt)} />
           )}
           {report.hodSignature && (
-            <Field label="HOD Signature" value={report.hodSignature} />
+            <Field label="HOSTs Signature" value={report.hodSignature} />
           )}
         </div>
       </div>
 
       {/* ── Section 2: Member Grades ─────────────────────────────────── */}
+      {hasNewSections && (
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
+          <SectionHeading title="GOALS FOR THE MONTH" />
+          {report.goalsForMonth.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-gray-400">No goals recorded.</p>
+          ) : (
+            <div className="divide-y divide-sbc-grey dark:divide-white/10">
+              {report.goalsForMonth.map((goal) => (
+                <div key={goal.goalNumber} className="grid grid-cols-1 gap-3 p-5 md:grid-cols-[1fr_160px]">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-1">
+                      Goal {goal.goalNumber}
+                    </p>
+                    <p className="text-sm text-sbc-black dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                      {goal.goal}
+                    </p>
+                    {goal.remarks && (
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                        {goal.remarks}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-1">
+                      Achieved?
+                    </p>
+                    <p className="text-sm font-medium text-sbc-black dark:text-white">{goal.achieved}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {(report.challengesForMonth || report.goalsNextMonth || report.serviceTeamNeeds) && (
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
+          <SectionHeading title="PLANNING NOTES" />
+          <div className="p-5 space-y-4">
+            {report.challengesForMonth && (
+              <TextBlock label="Challenges for the Month" value={report.challengesForMonth} />
+            )}
+            {report.goalsNextMonth && (
+              <TextBlock label="Goals for Next Month" value={report.goalsNextMonth} />
+            )}
+            {report.serviceTeamNeeds && (
+              <TextBlock label="Service Team Needs for Next Month" value={report.serviceTeamNeeds} />
+            )}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {report.budget && <Field label="Budget" value={report.budget} />}
+              {report.budgetFinancing && <Field label="Budget Financing" value={report.budgetFinancing} />}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
         <SectionHeading
-          title="MEMBER PERFORMANCE GRADES"
+          title="SERVICE TEAM MEMBERS PERFORMANCE ASSESSMENT"
           subtitle={`${memberGrades.length} member${memberGrades.length !== 1 ? 's' : ''} graded`}
         />
         {memberGrades.length === 0 ? (
@@ -243,6 +321,31 @@ export default function ReportDetail({
       </div>
 
       {/* ── Section 3: Observations ──────────────────────────────────── */}
+      {report.naExplanation && (
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
+          <SectionHeading title="N/A EXPLANATION" />
+          <div className="p-5">
+            <p className="text-sm text-sbc-black dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+              {report.naExplanation}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {report.serviceTeamLeaderComments && (
+        <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
+          <SectionHeading title="COMMENTS BY SERVICE TEAM LEADER" />
+          <div className="p-5 space-y-4">
+            <TextBlock label="Comments" value={report.serviceTeamLeaderComments} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Confirmed" value={report.confirmation ? 'Yes' : 'No'} />
+              <Field label="Signature" value={report.signature ?? undefined} />
+              <Field label="Date" value={report.confirmationDate ? fmtDate(report.confirmationDate) : undefined} />
+            </div>
+          </div>
+        </div>
+      )}
+
       {(report.generalObservations || report.challengesEncountered) && (
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
           <SectionHeading title="OBSERVATIONS & CHALLENGES" />
@@ -275,7 +378,7 @@ export default function ReportDetail({
       {showPastorReview && (
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
           <SectionHeading
-            title="SUPERVISOR PASTOR REVIEW"
+            title="SUPERVISING PASTOR REVIEW"
             subtitle={
               pastorReview?.submittedAt
                 ? `Submitted ${fmtDate(pastorReview.submittedAt)} by ${pastorReview.reviewerName}`
@@ -288,23 +391,24 @@ export default function ReportDetail({
             <p className="px-5 py-8 text-center text-sm text-gray-400">Awaiting pastor review.</p>
           ) : (
             <div className="p-5 space-y-4">
-              {/* HOD grading */}
-              <div>
-                <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-3">
-                  HOD Performance Assessment
-                </p>
-                <div className="space-y-0">
-                  <ReviewGradeRow label="General Attitude" grade={pastorReview.hodGeneralAttitude} />
-                  <ReviewGradeRow label="Teamwork" grade={pastorReview.hodTeamwork} />
-                  <ReviewGradeRow label="Punctuality" grade={pastorReview.hodPunctuality} />
-                  <ReviewGradeRow label="Appearance / Personal Hygiene" grade={pastorReview.hodAppearance} />
-                  <ReviewGradeRow label="Attendance" grade={pastorReview.hodAttendance} />
+              {showPastorReviewGrades && (
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-3">
+                    HOSTs Performance Assessment
+                  </p>
+                  <div className="space-y-0">
+                    <ReviewGradeRow label="General Attitude" grade={pastorReview.hodGeneralAttitude} />
+                    <ReviewGradeRow label="Teamwork" grade={pastorReview.hodTeamwork} />
+                    <ReviewGradeRow label="Punctuality" grade={pastorReview.hodPunctuality} />
+                    <ReviewGradeRow label="Appearance / Personal Hygiene" grade={pastorReview.hodAppearance} />
+                    <ReviewGradeRow label="Attendance" grade={pastorReview.hodAttendance} />
+                  </div>
                 </div>
-              </div>
+              )}
               {pastorReview.comments && (
                 <div>
                   <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-2">
-                    Comments
+                    Review
                   </p>
                   <p className="text-sm text-sbc-black dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                     {pastorReview.comments}
@@ -324,11 +428,11 @@ export default function ReportDetail({
         </div>
       )}
 
-      {/* ── Section 5: Head Review ────────────────────────────────────── */}
+      {/* ── Section 5: Committee Review ────────────────────────────────────── */}
       {showHeadReview && (
         <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
           <SectionHeading
-            title="HEAD OF SUPERVISOR REVIEW"
+            title="COMMITTEE REVIEW"
             subtitle={
               headReview?.submittedAt
                 ? `Submitted ${fmtDate(headReview.submittedAt)} by ${headReview.reviewerName}`
@@ -338,13 +442,13 @@ export default function ReportDetail({
             }
           />
           {!headReview ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-400">Awaiting head review.</p>
+            <p className="px-5 py-8 text-center text-sm text-gray-400">Awaiting committee review.</p>
           ) : (
             <div className="p-5 space-y-4">
               {headReview.overallComments && (
                 <div>
                   <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-2">
-                    Overall Comments
+                    Review
                   </p>
                   <p className="text-sm text-sbc-black dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
                     {headReview.overallComments}
@@ -354,7 +458,7 @@ export default function ReportDetail({
               {headReview.supervisorReviewed && (
                 <div className="space-y-0">
                   <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-3">
-                    Pastor Performance Assessment
+                    Supervising Pastor Performance Assessment
                   </p>
                   <ReviewGradeRow
                     label={headReview.supervisorReviewed}
@@ -379,6 +483,17 @@ export default function ReportDetail({
 }
 
 // ─── Utility sub-components ───────────────────────────────────────────────────
+
+function TextBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-2">{label}</p>
+      <p className="text-sm text-sbc-black dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+        {value}
+      </p>
+    </div>
+  )
+}
 
 function Field({
   label,

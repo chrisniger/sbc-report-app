@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Plus, Edit, ToggleLeft, Loader2, AlertTriangle } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface TeamRecord {
   id: string
@@ -17,6 +17,7 @@ export interface TeamRecord {
   isActive: boolean
   hodId: string | null
   pastorId: string | null
+  submittedReportCount: number
   hod: {
     id: string
     hodName: string
@@ -56,7 +57,7 @@ interface Props {
   stats: { total: number; assigned: number; unassigned: number; active: number }
 }
 
-// ─── Schemas ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Schemas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const teamSchema = z.object({
   name: z.string().min(1, 'Team name required'),
@@ -67,7 +68,7 @@ const teamSchema = z.object({
 
 type TeamFormValues = z.infer<typeof teamSchema>
 
-// ─── Shared styles ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Shared styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const inputCls =
   'w-full px-3 py-2 bg-white dark:bg-zinc-700 border border-sbc-grey dark:border-white/10 rounded text-sm text-sbc-black dark:text-white focus:outline-none focus:border-sbc-red'
@@ -77,7 +78,7 @@ const errCls = 'text-sbc-red text-xs mt-1'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-// ─── Team Form Modal ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Team Form Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function TeamFormModal({
   team,
@@ -129,7 +130,7 @@ function TeamFormModal({
   }
 
   return (
-    <Modal title={isEdit ? `EDIT TEAM — ${team!.name}` : 'ADD TEAM'} onClose={onClose}>
+    <Modal title={isEdit ? `EDIT TEAM â€” ${team!.name}` : 'ADD TEAM'} onClose={onClose}>
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="p-5 space-y-4">
           <div>
@@ -139,9 +140,9 @@ function TeamFormModal({
           </div>
 
           <div>
-            <label className={labelCls}>Assign HOD</label>
+            <label className={labelCls}>Assign HOSTs</label>
             <select {...register('hodId')} className={inputCls}>
-              <option value="">— None —</option>
+              <option value="">â€” None â€”</option>
               {hodOptions.map((h) => (
                 <option key={h.id} value={h.id}>{h.hodName}</option>
               ))}
@@ -149,9 +150,9 @@ function TeamFormModal({
           </div>
 
           <div>
-            <label className={labelCls}>Assign Supervisor Pastor</label>
+            <label className={labelCls}>Assign Supervising Pastor</label>
             <select {...register('pastorId')} className={inputCls}>
-              <option value="">— None —</option>
+              <option value="">â€” None â€”</option>
               {pastorOptions.map((p) => (
                 <option key={p.id} value={p.id}>{p.pastorName}</option>
               ))}
@@ -189,7 +190,8 @@ function TeamFormModal({
   )
 }
 
-// ─── Confirm Deactivate Modal ─────────────────────────────────────────────────
+// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
 function ConfirmModal({
   team,
@@ -218,7 +220,7 @@ function ConfirmModal({
               Deactivate &ldquo;{team.name}&rdquo;?
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              This team will be hidden from HOD reports. Existing reports will remain intact.
+              This team will be hidden from HOSTs reports. Existing reports will remain intact.
             </p>
           </div>
         </div>
@@ -239,8 +241,6 @@ function ConfirmModal({
     </Modal>
   )
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function TeamsClient({ initialTeams, hodOptions, pastorOptions, stats }: Props) {
   const router = useRouter()
@@ -291,11 +291,10 @@ export default function TeamsClient({ initialTeams, hodOptions, pastorOptions, s
       )}
 
       <div className="space-y-4">
-        {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Total Teams', value: stats.total },
-            { label: 'Assigned to HOD', value: stats.assigned },
+            { label: 'Assigned to HOSTs', value: stats.assigned },
             { label: 'Unassigned', value: stats.unassigned },
             { label: 'Active', value: stats.active },
           ].map((s) => (
@@ -306,7 +305,6 @@ export default function TeamsClient({ initialTeams, hodOptions, pastorOptions, s
           ))}
         </div>
 
-        {/* Table header */}
         <div className="group bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-sbc-grey dark:border-white/10">
             <h2 className="font-heading text-xl text-sbc-black dark:text-white tracking-widest">
@@ -314,7 +312,7 @@ export default function TeamsClient({ initialTeams, hodOptions, pastorOptions, s
             </h2>
             <button
               onClick={() => setShowAdd(true)}
-              className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-all duration-150"
+              className="opacity-100 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-all duration-150"
             >
               <Plus size={13} />
               Add Team
@@ -325,7 +323,7 @@ export default function TeamsClient({ initialTeams, hodOptions, pastorOptions, s
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-sbc-grey dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60">
-                  {['Team Name', 'HOD', 'Supervisor Pastor', 'Members', 'Last Report', 'Status', 'Actions'].map((h) => (
+                  {['Team Name', 'HOSTs', 'Supervising Pastor', 'Members', 'Last Report', 'Status', 'Actions'].map((h) => (
                     <th key={h} className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium whitespace-nowrap">
                       {h}
                     </th>
@@ -401,7 +399,8 @@ export default function TeamsClient({ initialTeams, hodOptions, pastorOptions, s
             </table>
           </div>
         </div>
-      </div>
-    </>
+      </div>    </>
   )
 }
+
+

@@ -64,7 +64,7 @@ export async function POST(
       data: {
         userId: session.user.id,
         action: 'REMINDER_SENT',
-        description: `Admin sent reminders for ${periodLabel} to ${sent} HOD(s): ${hodNames.join(', ')}`,
+        description: `Admin sent reminders for ${periodLabel} to ${sent} HOST(s): ${hodNames.join(', ')}`,
         entityType: 'ReportPeriod',
         entityId: id,
       },

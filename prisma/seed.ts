@@ -81,7 +81,7 @@ async function main() {
       lastName: 'Saliu',
       roles: [UserRole.HEAD_OF_SUPERVISOR],
       isActive: true,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
   })
 
@@ -94,6 +94,35 @@ async function main() {
     },
   })
   console.log('✅ Head of Supervisor created:', headUser.username)
+
+  // ─────────────────────────────────────────
+  // 2b. Create head.supervisor test account
+  // ─────────────────────────────────────────
+  const headSupPasswordHash = await bcrypt.hash('Head@SBC2026', 10)
+
+  const headSupUser = await prisma.user.upsert({
+    where: { username: 'head.supervisor' },
+    update: {},
+    create: {
+      username: 'head.supervisor',
+      passwordHash: headSupPasswordHash,
+      firstName: 'Remi',
+      lastName: 'Saliu',
+      roles: [UserRole.HEAD_OF_SUPERVISOR],
+      isActive: true,
+      mustChangePassword: false,
+    },
+  })
+
+  await prisma.headOfSupervisorProfile.upsert({
+    where: { userId: headSupUser.id },
+    update: {},
+    create: {
+      userId: headSupUser.id,
+      headName: 'Remi Saliu',
+    },
+  })
+  console.log('✅ Head of Supervisor (head.supervisor) created/verified')
 
   // ─────────────────────────────────────────
   // 3. Create Sample Supervisor Pastor Users
@@ -149,7 +178,7 @@ async function main() {
         lastName: p.lastName,
         roles: [UserRole.SUPERVISOR_PASTOR],
         isActive: true,
-        mustChangePassword: true,
+        mustChangePassword: false,
       },
     })
     const pp = await prisma.pastorProfile.upsert({
@@ -232,7 +261,7 @@ async function main() {
         lastName: h.lastName,
         roles: [UserRole.HOD],
         isActive: true,
-        mustChangePassword: true,
+        mustChangePassword: false,
       },
     })
     const hp = await prisma.hodProfile.upsert({
@@ -372,7 +401,7 @@ async function main() {
   console.log('  Pastors  → password: Pastor@SBC2026')
   console.log('  HODs     → password: Hod@SBC2026')
   console.log('─────────────────────────────────────')
-  console.log('⚠️  All non-admin users must change password on first login.')
+  console.log('  All users can log in directly — no forced password change.')
 }
 
 main()

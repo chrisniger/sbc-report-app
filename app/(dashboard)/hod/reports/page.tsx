@@ -115,9 +115,6 @@ export default async function HodReportsPage({
                 <th className="text-center px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden md:table-cell">
                   Enrolled
                 </th>
-                <th className="text-center px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden md:table-cell">
-                  Present
-                </th>
                 <th className="text-center px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden lg:table-cell">
                   Avg Score
                 </th>
@@ -128,7 +125,7 @@ export default async function HodReportsPage({
             <tbody>
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-gray-400 text-sm">
+                  <td colSpan={6} className="px-5 py-16 text-center text-gray-400 text-sm">
                     No reports found{filterMonth || filterYear ? ' for this filter' : ''}.
                   </td>
                 </tr>
@@ -146,9 +143,6 @@ export default async function HodReportsPage({
                     </td>
                     <td className="px-5 py-3 text-center text-gray-500 hidden md:table-cell">
                       {r.totalMembersEnrolled}
-                    </td>
-                    <td className="px-5 py-3 text-center text-gray-500 hidden md:table-cell">
-                      {r.totalMembersPresent ?? '—'}
                     </td>
                     <td className="px-5 py-3 text-center hidden lg:table-cell">
                       <span
@@ -172,7 +166,7 @@ export default async function HodReportsPage({
                       <div className="flex items-center justify-end gap-3">
                         {r.status === 'DRAFT' && (
                           <Link
-                            href="/hod/report"
+                            href={`/hod/report?teamId=${r.serviceTeamId}&month=${r.reportMonth}&year=${r.reportYear}`}
                             className="text-xs text-sbc-red hover:underline font-medium"
                           >
                             Edit

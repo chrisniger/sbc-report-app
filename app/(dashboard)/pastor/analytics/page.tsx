@@ -1,10 +1,12 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { type Prisma } from '@prisma/client'
 import PastorAnalyticsClient from '@/components/analytics/PastorAnalyticsClient'
 import type { TeamScorePoint } from '@/components/charts/TeamScoreBar'
 import type { TrendPoint } from '@/components/charts/ScoreTrendChart'
 import type { MemberRow } from '@/components/charts/MemberScoreTable'
+import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 function build6Months() {
   const now = new Date()
@@ -19,42 +21,57 @@ function build6Months() {
 }
 
 async function getData(userId: string) {
-  const now = new Date()
-  const month = now.getMonth() + 1
-  const year = now.getFullYear()
   const months6 = build6Months()
 
-  const pastorProfile = await prisma.pastorProfile.findUnique({
-    where: { userId },
-    include: { serviceTeams: { select: { id: true, name: true } } },
+  const scope = await getSupervisedPastorScope(userId)
+  if (!scope) return null
+
+  const { hodIds, teamIds } = scope
+  const reportWhere: Prisma.HodReportWhereInput = {
+    hodProfileId: { in: hodIds },
+    serviceTeamId: { in: teamIds },
+  }
+  const submittedReportWhere: Prisma.HodReportWhereInput = {
+    ...reportWhere,
+    status: { not: 'DRAFT' },
+  }
+  const teams = await prisma.serviceTeam.findMany({
+    where: { id: { in: teamIds } },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
   })
-  if (!pastorProfile) return null
+  const teamNames = teams.map(t => t.name)
 
-  const teamIds = pastorProfile.serviceTeams.map(t => t.id)
-
-  const [statusGroups, thisMonthCount, thisMonthAvg, pendingReviews, trendReports, topMemberGroups] =
+  const [statusGroups, submittedCount, submittedAvg, pendingReviews, submittedReports, trendReports, topMemberGroups] =
     await Promise.all([
       prisma.hodReport.groupBy({
         by: ['status'],
         _count: { id: true },
-        where: { serviceTeamId: { in: teamIds } },
+        where: submittedReportWhere,
       }),
       prisma.hodReport.count({
-        where: { serviceTeamId: { in: teamIds }, reportMonth: month, reportYear: year, status: { not: 'DRAFT' } },
+        where: submittedReportWhere,
       }),
       prisma.reportMemberGrade.aggregate({
         where: {
-          report: { serviceTeamId: { in: teamIds }, reportMonth: month, reportYear: year, status: { not: 'DRAFT' } },
+          report: submittedReportWhere,
           averageScore: { not: null },
         },
         _avg: { averageScore: true },
       }),
       prisma.hodReport.count({
-        where: { serviceTeamId: { in: teamIds }, status: 'SUBMITTED' },
+        where: { ...reportWhere, status: 'SUBMITTED' },
+      }),
+      prisma.hodReport.findMany({
+        where: submittedReportWhere,
+        include: {
+          serviceTeam: { select: { name: true } },
+          memberGrades: { select: { averageScore: true } },
+        },
       }),
       prisma.hodReport.findMany({
         where: {
-          serviceTeamId: { in: teamIds },
+          ...reportWhere,
           OR: months6.map(m => ({ reportMonth: m.month, reportYear: m.year })),
           status: { not: 'DRAFT' },
         },
@@ -68,7 +85,7 @@ async function getData(userId: string) {
         _avg: { averageScore: true },
         _count: { id: true },
         where: {
-          report: { serviceTeamId: { in: teamIds } },
+          report: { ...reportWhere, status: { not: 'DRAFT' } },
           averageScore: { not: null },
         },
         orderBy: { _avg: { averageScore: 'desc' } },
@@ -76,10 +93,9 @@ async function getData(userId: string) {
       }),
     ])
 
-  // Team scores current month
-  const currentReports = trendReports.filter(r => r.reportMonth === month && r.reportYear === year)
+  // Team scores across all non-draft submitted reports in this pastor's HOST scope.
   const teamScoreMap = new Map<string, { scores: number[] }>()
-  for (const r of currentReports) {
+  for (const r of submittedReports) {
     if (!teamScoreMap.has(r.serviceTeam.name)) teamScoreMap.set(r.serviceTeam.name, { scores: [] })
     for (const g of r.memberGrades) {
       if (g.averageScore != null) teamScoreMap.get(r.serviceTeam.name)!.scores.push(g.averageScore)
@@ -96,7 +112,6 @@ async function getData(userId: string) {
     .sort((a, b) => b.avgScore - a.avgScore)
 
   // Teams for trend — all pastor's teams
-  const teamNames = pastorProfile.serviceTeams.map(t => t.name)
   const trendData: TrendPoint[] = months6.map(m => {
     const point: TrendPoint = { label: m.label }
     for (const teamName of teamNames) {
@@ -131,8 +146,8 @@ async function getData(userId: string) {
   return {
     stats: {
       myTeamsCount: teamIds.length,
-      submittedThisMonth: thisMonthCount,
-      averageScore: thisMonthAvg._avg.averageScore ?? null,
+      submittedReports: submittedCount,
+      averageScore: submittedAvg._avg.averageScore ?? null,
       pendingReviews,
     },
     teamScores,

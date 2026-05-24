@@ -10,8 +10,8 @@ const YEAR_OPTIONS = Array.from({ length: 4 }, (_, i) => new Date().getFullYear(
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses' },
   { value: 'SUBMITTED', label: 'Submitted' },
-  { value: 'PASTOR_REVIEWED', label: 'Pastor Reviewed' },
-  { value: 'HEAD_REVIEWED', label: 'Head Reviewed' },
+  { value: 'PASTOR_REVIEWED', label: 'Supervising Pastor Reviewed' },
+  { value: 'HEAD_REVIEWED', label: 'Committee Reviewed' },
   { value: 'COMPLETED', label: 'Completed' },
 ]
 
@@ -23,7 +23,8 @@ export default async function HeadReportsPage({
   searchParams: Promise<SearchParams>
 }) {
   const session = await auth()
-  if (!session?.user?.roles?.includes('HEAD_OF_SUPERVISOR')) redirect('/dashboard')
+  const roles = session?.user?.roles ?? []
+  if (!roles.includes('HEAD_OF_SUPERVISOR') && !roles.includes('PASTOR')) redirect('/dashboard')
 
   const params = await searchParams
   const filterMonth = params.month ? parseInt(params.month) : undefined
@@ -41,7 +42,6 @@ export default async function HeadReportsPage({
       serviceTeam: { select: { name: true } },
       hodProfile: { select: { hodName: true } },
       pastorReview: { select: { id: true, submittedAt: true } },
-      headReview: { select: { id: true, submittedAt: true } },
       memberGrades: { select: { averageScore: true } },
     },
   })
@@ -127,7 +127,7 @@ export default async function HeadReportsPage({
             <thead>
               <tr className="border-b border-sbc-grey dark:border-white/10 bg-zinc-50 dark:bg-zinc-900/60">
                 <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Team</th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">HOD</th>
+                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">HOSTs</th>
                 <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Period</th>
                 <th className="text-center px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden md:table-cell">
                   Avg Score
@@ -136,16 +136,13 @@ export default async function HeadReportsPage({
                 <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden lg:table-cell">
                   Pastor Review
                 </th>
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium hidden lg:table-cell">
-                  My Review
-                </th>
                 <th className="text-right px-5 py-3 text-xs uppercase tracking-wider text-gray-500 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-gray-400 text-sm">
+                  <td colSpan={7} className="px-5 py-16 text-center text-gray-400 text-sm">
                     No reports found{hasFilter ? ' for this filter' : ''}.
                   </td>
                 </tr>
@@ -154,8 +151,6 @@ export default async function HeadReportsPage({
                   const avg = teamAvg(r.memberGrades)
                   const avgNum = avg !== '—' ? parseFloat(avg) : null
                   const pastorDone = !!r.pastorReview?.submittedAt
-                  const headDone = !!r.headReview?.submittedAt
-                  const canReview = r.status === 'PASTOR_REVIEWED' || r.status === 'HEAD_REVIEWED'
                   return (
                     <tr
                       key={r.id}
@@ -192,35 +187,13 @@ export default async function HeadReportsPage({
                           <span className="text-xs text-gray-400">Pending</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 hidden lg:table-cell">
-                        {headDone ? (
-                          <span className="text-xs font-medium text-green-600 dark:text-green-400">✓ Done</span>
-                        ) : r.headReview ? (
-                          <span className="text-xs text-amber-600 dark:text-amber-400">Draft</span>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
-                      </td>
                       <td className="px-5 py-3 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <Link
-                            href={`/head/reports/${r.id}`}
-                            className="text-xs text-gray-500 dark:text-gray-400 hover:underline"
-                          >
-                            View
-                          </Link>
-                          {(canReview || headDone) && (
-                            <Link
-                              href={`/head/review?reportId=${r.id}`}
-                              className="text-xs text-sbc-red hover:underline font-medium"
-                            >
-                              {headDone ? 'Edit Review' : 'Review'}
-                            </Link>
-                          )}
-                          {!canReview && !headDone && r.status === 'SUBMITTED' && (
-                            <span className="text-xs text-gray-400">Awaiting pastor</span>
-                          )}
-                        </div>
+                        <Link
+                          href={`/head/reports/${r.id}`}
+                          className="text-xs text-sbc-red hover:underline font-medium"
+                        >
+                          View
+                        </Link>
                       </td>
                     </tr>
                   )

@@ -1,32 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CheckCircle, Loader2, Lock } from 'lucide-react'
-import { GRADE_COLUMN_LABELS, GRADE_LABELS, computeAverageScore, type GradeValue } from '@/lib/grade-utils'
+import { type GradeValue } from '@/lib/grade-utils'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
-]
-
-const GRADE_OPTIONS: { value: GradeValue; label: string }[] = [
-  { value: 'FIVE', label: '5 — Outstanding' },
-  { value: 'FOUR', label: '4 — Very Good' },
-  { value: 'THREE', label: '3 — Good' },
-  { value: 'TWO', label: '2 — Fair' },
-  { value: 'ONE', label: '1 — Poor' },
-  { value: 'NOT_APPLICABLE', label: 'N/A' },
-]
-
-const HOD_GRADE_FIELDS: { key: keyof PastorReviewSummary; label: string }[] = [
-  { key: 'hodGeneralAttitude', label: GRADE_COLUMN_LABELS.generalAttitude },
-  { key: 'hodTeamwork', label: GRADE_COLUMN_LABELS.teamwork },
-  { key: 'hodPunctuality', label: GRADE_COLUMN_LABELS.punctuality },
-  { key: 'hodAppearance', label: GRADE_COLUMN_LABELS.appearance },
-  { key: 'hodAttendance', label: GRADE_COLUMN_LABELS.attendance },
 ]
 
 const gradeEnum = z.enum(['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'NOT_APPLICABLE'])
@@ -48,8 +32,6 @@ export interface HeadReportSummary {
   reportMonth: number
   reportYear: number
   totalMembersEnrolled: number
-  totalMembersPresent: number | null
-  totalMembersAbsent: number | null
   avgScore: number | null
 }
 
@@ -84,6 +66,7 @@ interface Props {
 }
 
 export default function HeadReviewForm({ reportId, headName, report, pastorReview, existingReview }: Props) {
+  const router = useRouter()
   const [pageStatus, setPageStatus] = useState<'idle' | 'saving' | 'submitting' | 'success' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -111,30 +94,12 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
 
   const { register, setError, formState: { errors } } = form
 
-  const pastorAvg = pastorReview
-    ? computeAverageScore({
-        generalAttitude: pastorReview.hodGeneralAttitude,
-        teamwork: pastorReview.hodTeamwork,
-        punctuality: pastorReview.hodPunctuality,
-        appearance: pastorReview.hodAppearance,
-        attendance: pastorReview.hodAttendance,
-      })
-    : null
-
   async function onSave(isDraft: boolean) {
     const values = form.getValues()
     if (!isDraft) {
       let hasError = false
       if (!values.overallComments?.trim()) {
-        setError('overallComments', { message: 'Overall comments are required' })
-        hasError = true
-      }
-      if (!values.signature?.trim()) {
-        setError('signature', { message: 'Signature is required' })
-        hasError = true
-      }
-      if (!values.confirmed) {
-        setError('confirmed', { message: 'Please confirm the information is accurate' })
+        setError('overallComments', { message: 'Review is required' })
         hasError = true
       }
       if (hasError) return
@@ -153,9 +118,9 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
           overallComments: values.overallComments?.trim() || undefined,
           supervisorReviewed: pastorReview?.pastorName || undefined,
           supervisorPerformance: values.supervisorPerformance,
-          signature: values.signature?.trim() || undefined,
+          signature: values.signature?.trim() || headName,
           reviewDate: values.reviewDate || undefined,
-          confirmed: values.confirmed,
+          confirmed: true,
           status: isDraft ? 'DRAFT' : 'SUBMITTED',
         }),
       })
@@ -170,6 +135,7 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
         return
       }
       setPageStatus(isDraft ? 'idle' : 'success')
+      if (!isDraft) router.refresh()
     } catch {
       setErrorMsg('Network error. Check your connection and try again.')
       setPageStatus('error')
@@ -206,7 +172,7 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
         </div>
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <div>
-            <label className={labelCls}>Head of Supervisor</label>
+            <label className={labelCls}>Committee</label>
             <input readOnly value={headName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
           </div>
           <div>
@@ -214,7 +180,7 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
             <input readOnly value={report.serviceTeamName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
           </div>
           <div>
-            <label className={labelCls}>Head of Department</label>
+            <label className={labelCls}>HOSTs</label>
             <input readOnly value={report.hodName} className={`${inputCls} opacity-70 cursor-not-allowed`} />
           </div>
           <div>
@@ -231,8 +197,6 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
             <div className="flex flex-wrap gap-6 mt-1">
               {[
                 { label: 'Enrolled', val: report.totalMembersEnrolled },
-                { label: 'Present', val: report.totalMembersPresent ?? '—' },
-                { label: 'Absent', val: report.totalMembersAbsent ?? '—' },
               ].map(({ label, val }) => (
                 <div key={label} className="text-center min-w-[48px]">
                   <p className="text-2xl font-heading text-sbc-black dark:text-white">{val}</p>
@@ -255,182 +219,28 @@ export default function HeadReviewForm({ reportId, headName, report, pastorRevie
         </div>
       </section>
 
-      {/* ── SECTION B — Pastor Review Summary ────────────────── */}
-      <section className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 bg-sbc-black dark:bg-zinc-900 flex items-center justify-between">
-          <div>
-            <h2 className="font-heading text-white text-xl tracking-widest">
-              SECTION B — SUPERVISOR PASTOR REVIEW
-            </h2>
-            <p className="text-white/50 text-xs mt-0.5">Pastor's evaluation of the HOD — read-only</p>
-          </div>
-          {pastorAvg !== null && (
-            <span className={`text-sm font-bold ${
-              pastorAvg >= 4 ? 'text-green-400'
-              : pastorAvg >= 3 ? 'text-amber-400'
-              : 'text-red-400'
-            }`}>
-              Avg: {pastorAvg.toFixed(1)}
-            </span>
-          )}
-        </div>
-
-        {pastorReview ? (
-          <div className="p-6 space-y-5">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: '580px' }}>
-                <thead>
-                  <tr className="border-b border-sbc-grey dark:border-white/10">
-                    <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-gray-500 font-medium w-36">
-                      {report.hodName}
-                    </th>
-                    {HOD_GRADE_FIELDS.map(({ key, label }) => (
-                      <th key={key} className="text-center px-2 py-2 text-xs uppercase tracking-wider text-gray-500 font-medium">
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="py-3 pr-4 text-xs text-gray-400">{pastorReview.pastorName}</td>
-                    {HOD_GRADE_FIELDS.map(({ key }) => (
-                      <td key={key} className="px-2 py-2 text-center">
-                        <span className="text-sm font-medium text-sbc-black dark:text-white">
-                          {GRADE_LABELS[pastorReview[key] as GradeValue] ?? '—'}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            {pastorReview.comments && (
-              <div className="pt-4 border-t border-sbc-grey dark:border-white/10">
-                <p className={labelCls}>Pastor's Comments</p>
-                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                  {pastorReview.comments}
-                </p>
-              </div>
-            )}
-            {pastorReview.submittedAt && (
-              <p className="text-xs text-gray-400">
-                Submitted on{' '}
-                {new Date(pastorReview.submittedAt).toLocaleDateString('en-GB', {
-                  day: '2-digit', month: 'short', year: 'numeric',
-                })}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="p-6">
-            <p className="text-sm text-gray-400 text-center py-6">
-              No pastor review has been submitted for this report yet.
-            </p>
-          </div>
-        )}
-      </section>
-
-      {/* ── SECTION C — Head Assessment ───────────────────────── */}
+      {/* ── SECTION C — Review ────────────────────────────────── */}
       <section className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-sbc-grey dark:border-white/10">
           <h2 className="font-heading text-sbc-black dark:text-white text-xl tracking-widest">
-            SECTION C — HEAD ASSESSMENT
+            SECTION C — REVIEW
           </h2>
         </div>
         <div className="p-6 space-y-5">
           <div>
             <label className={labelCls}>
-              Overall Comments <span className="text-sbc-red">*</span>
+              Review <span className="text-sbc-red">*</span>
             </label>
             <textarea
               {...register('overallComments')}
               rows={5}
               disabled={isAlreadySubmitted}
-              placeholder="Your overall assessment of this team's report and the HOD's performance..."
+              placeholder="Your review of this team's report and the HOSTs performance..."
               className={`${inputCls} resize-none`}
             />
             {errors.overallComments && (
               <p className="text-sbc-red text-xs mt-1">{errors.overallComments.message}</p>
             )}
-          </div>
-
-          {pastorReview && (
-            <div>
-              <label className={labelCls}>Supervisor Pastor Assessment</label>
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <input
-                    readOnly
-                    value={pastorReview.pastorName}
-                    className={`${inputCls} opacity-70 cursor-not-allowed`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <select
-                    {...register('supervisorPerformance')}
-                    disabled={isAlreadySubmitted}
-                    className={`${inputCls} appearance-none`}
-                  >
-                    {GRADE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── SECTION D — Confirmation ───────────────────────────── */}
-      <section className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-sbc-grey dark:border-white/10">
-          <h2 className="font-heading text-sbc-black dark:text-white text-xl tracking-widest">
-            SECTION D — CONFIRMATION
-          </h2>
-        </div>
-        <div className="p-6 space-y-4">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              {...register('confirmed')}
-              disabled={isAlreadySubmitted}
-              className="mt-0.5 w-4 h-4 accent-sbc-red"
-            />
-            <span className="text-sm text-sbc-black dark:text-white leading-relaxed">
-              I confirm that the information provided in this review is accurate to the best of my knowledge.
-            </span>
-          </label>
-          {errors.confirmed && (
-            <p className="text-sbc-red text-xs">{errors.confirmed.message}</p>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-sbc-grey dark:border-white/10">
-            <div>
-              <label className={labelCls}>
-                Signature (Full Name) <span className="text-sbc-red">*</span>
-              </label>
-              <input
-                {...register('signature')}
-                type="text"
-                disabled={isAlreadySubmitted}
-                placeholder="Your full name"
-                className={inputCls}
-              />
-              {errors.signature && (
-                <p className="text-sbc-red text-xs mt-1">{errors.signature.message}</p>
-              )}
-            </div>
-            <div>
-              <label className={labelCls}>Date</label>
-              <input
-                {...register('reviewDate')}
-                type="date"
-                disabled={isAlreadySubmitted}
-                className={inputCls}
-              />
-            </div>
           </div>
         </div>
       </section>

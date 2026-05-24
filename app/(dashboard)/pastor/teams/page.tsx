@@ -1,26 +1,26 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
+import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 export default async function PastorTeamsPage() {
   const session = await auth()
   if (!session?.user?.roles?.includes('SUPERVISOR_PASTOR')) redirect('/dashboard')
 
-  const pastorProfile = await prisma.pastorProfile.findUnique({
-    where: { userId: session.user.id },
+  const scope = await getSupervisedPastorScope(session.user.id)
+  if (!scope) redirect('/dashboard')
+
+  const teams = await prisma.serviceTeam.findMany({
+    where: {
+      id: { in: scope.teamIds },
+      hodId: { in: scope.hodIds },
+    },
+    orderBy: { name: 'asc' },
     include: {
-      serviceTeams: {
-        orderBy: { name: 'asc' },
-        include: {
-          hod: { select: { hodName: true } },
-          members: { select: { id: true } },
-        },
-      },
+      hod: { select: { hodName: true } },
+      members: { select: { id: true } },
     },
   })
-  if (!pastorProfile) redirect('/dashboard')
-
-  const teams = pastorProfile.serviceTeams
 
   return (
     <div className="space-y-4">
@@ -43,7 +43,7 @@ export default async function PastorTeamsPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-sbc-black dark:text-white text-sm truncate">{team.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    HOD: {team.hod?.hodName ?? <span className="italic text-gray-400">Unassigned</span>}
+                    HOSTs: {team.hod?.hodName ?? <span className="italic text-gray-400">Unassigned</span>}
                   </p>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">

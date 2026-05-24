@@ -28,7 +28,11 @@ export async function POST(request: NextRequest) {
   try {
     const raw = await request.json()
     body = memberSchema.parse(raw)
-  } catch {
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'issues' in err) {
+      const firstIssue = (err as { issues: { message: string }[] }).issues[0]
+      return Response.json({ error: firstIssue?.message ?? 'Invalid request' }, { status: 400 })
+    }
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
     const hodProfile = await prisma.hodProfile.findUnique({
       where: { userId: session.user.id },
     })
-    if (!hodProfile) return Response.json({ error: 'HOD profile not found' }, { status: 404 })
+    if (!hodProfile) return Response.json({ error: 'HOSTs profile not found' }, { status: 404 })
 
     const team = await prisma.serviceTeam.findFirst({
       where: { id: body.teamId, hodId: hodProfile.id },
@@ -105,11 +109,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ id: member.id, action: 'created' }, { status: 201 })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
-    if (msg.includes('Unique constraint') || msg.includes('unique')) {
-      return Response.json({ error: 'Phone number already exists' }, { status: 409 })
-    }
     console.error('[POST /api/members]', err)
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+    if (msg.toLowerCase().includes('unique')) {
+      return Response.json({ error: 'Phone number already exists in the system' }, { status: 409 })
+    }
+    return Response.json({ error: msg }, { status: 500 })
   }
 }
 

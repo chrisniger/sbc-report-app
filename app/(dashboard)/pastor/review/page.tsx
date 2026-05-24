@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import Link from 'next/link'
 import ReviewForm from '@/components/pastor/ReviewForm'
 import type { ReportSummary, ExistingPastorReview } from '@/components/pastor/ReviewForm'
+import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 export default async function PastorReviewPage({
   searchParams,
@@ -16,13 +17,10 @@ export default async function PastorReviewPage({
   const params = await searchParams
   if (!params.reportId) redirect('/pastor/reports')
 
-  const pastorProfile = await prisma.pastorProfile.findUnique({
-    where: { userId: session.user.id },
-    include: { serviceTeams: { select: { id: true } } },
-  })
-  if (!pastorProfile) redirect('/dashboard')
+  const scope = await getSupervisedPastorScope(session.user.id)
+  if (!scope) redirect('/dashboard')
 
-  const teamIds = pastorProfile.serviceTeams.map((t) => t.id)
+  const { pastorProfile, hodIds, teamIds } = scope
 
   const report = await prisma.hodReport.findUnique({
     where: { id: params.reportId },
@@ -34,13 +32,13 @@ export default async function PastorReviewPage({
     },
   })
 
-  if (!report || !teamIds.includes(report.serviceTeamId)) redirect('/pastor/reports')
+  if (!report || !teamIds.includes(report.serviceTeamId) || !hodIds.includes(report.hodProfileId)) redirect('/pastor/reports')
 
   if (report.status === 'DRAFT') {
     return (
       <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-sm p-8 text-center space-y-3">
         <p className="text-sbc-black dark:text-white font-medium">Report Not Yet Submitted</p>
-        <p className="text-gray-500 text-sm">This report is still a draft. It must be submitted by the HOD before you can review it.</p>
+        <p className="text-gray-500 text-sm">This report is still a draft. It must be submitted by the HOSTs before you can review it.</p>
         <Link href="/pastor/reports" className="inline-block mt-2 text-sm text-sbc-red hover:underline">
           ← Back to Reports
         </Link>
@@ -62,8 +60,6 @@ export default async function PastorReviewPage({
     reportMonth: report.reportMonth,
     reportYear: report.reportYear,
     totalMembersEnrolled: report.totalMembersEnrolled,
-    totalMembersPresent: report.totalMembersPresent,
-    totalMembersAbsent: report.totalMembersAbsent,
     avgScore,
   }
 

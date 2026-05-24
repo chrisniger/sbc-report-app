@@ -50,7 +50,7 @@ export async function PATCH(
     await prisma.serviceTeam.update({ where: { id }, data: updateData })
 
     const changes: string[] = []
-    if (body.hodId !== undefined) changes.push(`HOD reassigned`)
+    if (body.hodId !== undefined) changes.push(`HOSTs reassigned`)
     if (body.pastorId !== undefined) changes.push(`Pastor reassigned`)
     if (body.name) changes.push(`renamed to "${body.name}"`)
     if (body.isActive !== undefined) changes.push(body.isActive ? 'reactivated' : 'deactivated')

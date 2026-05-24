@@ -123,7 +123,8 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const session = await auth()
   if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.roles.includes('HEAD_OF_SUPERVISOR')) {
+  const roles = session.user.roles
+  if (!roles.includes('HEAD_OF_SUPERVISOR') && !roles.includes('PASTOR')) {
     return Response.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -134,7 +135,9 @@ export async function GET(request: NextRequest) {
   try {
     const reviews = await prisma.headReview.findMany({
       where: {
-        reviewedById: session.user.id,
+        ...(roles.includes('PASTOR') && !roles.includes('HEAD_OF_SUPERVISOR')
+          ? { submittedAt: { not: null } }
+          : { reviewedById: session.user.id }),
         ...(month || year
           ? {
               report: {

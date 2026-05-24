@@ -2,7 +2,8 @@ import { auth } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import ReportDetail from '@/components/report/ReportDetail'
-import type { ReportData, MemberGradeRow } from '@/components/report/ReportDetail'
+import type { HeadReviewRow, ReportData, MemberGradeRow, PastorReviewRow } from '@/components/report/ReportDetail'
+import { normalizeReportGoals } from '@/lib/report-goals'
 
 export default async function HodReportDetailPage({
   params,
@@ -27,6 +28,16 @@ export default async function HodReportDetailPage({
         include: { member: { select: { fullName: true } } },
         orderBy: { member: { fullName: 'asc' } },
       },
+      pastorReview: {
+        include: {
+          pastor: { select: { pastorName: true } },
+        },
+      },
+      headReview: {
+        include: {
+          reviewedBy: { select: { firstName: true, lastName: true } },
+        },
+      },
     },
   })
 
@@ -42,10 +53,19 @@ export default async function HodReportDetailPage({
     reportYear: report.reportYear,
     status: report.status,
     totalMembersEnrolled: report.totalMembersEnrolled,
-    totalMembersPresent: report.totalMembersPresent,
-    totalMembersAbsent: report.totalMembersAbsent,
     generalObservations: report.generalObservations,
     challengesEncountered: report.challengesEncountered,
+    goalsForMonth: normalizeReportGoals(report.goalsForMonth),
+    challengesForMonth: report.challengesForMonth,
+    goalsNextMonth: report.goalsNextMonth,
+    serviceTeamNeeds: report.serviceTeamNeeds,
+    budget: report.budget,
+    budgetFinancing: report.budgetFinancing,
+    serviceTeamLeaderComments: report.serviceTeamLeaderComments,
+    confirmation: report.confirmation,
+    signature: report.signature,
+    confirmationDate: report.confirmationDate?.toISOString() ?? null,
+    naExplanation: report.naExplanation,
     hodSignature: report.hodSignature,
     submittedAt: report.submittedAt?.toISOString() ?? null,
   }
@@ -61,14 +81,42 @@ export default async function HodReportDetailPage({
     averageScore: g.averageScore,
   }))
 
+  const pastorReview: PastorReviewRow | null = report.pastorReview
+    ? {
+        reviewerName: report.pastorReview.pastor.pastorName,
+        hodGeneralAttitude: report.pastorReview.hodGeneralAttitude,
+        hodTeamwork: report.pastorReview.hodTeamwork,
+        hodPunctuality: report.pastorReview.hodPunctuality,
+        hodAppearance: report.pastorReview.hodAppearance,
+        hodAttendance: report.pastorReview.hodAttendance,
+        comments: report.pastorReview.comments,
+        reviewDate: report.pastorReview.reviewDate?.toISOString() ?? null,
+        submittedAt: report.pastorReview.submittedAt?.toISOString() ?? null,
+      }
+    : null
+
+  const headReview: HeadReviewRow | null = report.headReview
+    ? {
+        reviewerName: `${report.headReview.reviewedBy.firstName} ${report.headReview.reviewedBy.lastName ?? ''}`.trim(),
+        overallComments: report.headReview.overallComments,
+        supervisorReviewed: report.headReview.supervisorReviewed,
+        supervisorPerformance: report.headReview.supervisorPerformance,
+        reviewDate: report.headReview.reviewDate?.toISOString() ?? null,
+        submittedAt: report.headReview.submittedAt?.toISOString() ?? null,
+      }
+    : null
+
   return (
     <ReportDetail
       backHref="/hod/reports"
       backLabel="My Reports"
       report={reportData}
       memberGrades={memberGrades}
-      showPastorReview={false}
-      showHeadReview={false}
+      pastorReview={pastorReview}
+      headReview={headReview}
+      showPastorReview={!!pastorReview?.submittedAt}
+      showPastorReviewGrades={false}
+      showHeadReview={!!headReview?.submittedAt}
     />
   )
 }

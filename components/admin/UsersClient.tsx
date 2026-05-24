@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { UserPlus, Edit, MoreHorizontal, Loader2, KeyRound, UserX } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
+import { toast } from '@/components/ui/Toast'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,18 +50,20 @@ interface Props {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ALL_ROLES = ['ADMIN', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD'] as const
+const ALL_ROLES = ['ADMIN', 'PASTOR', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD'] as const
 type RoleKey = typeof ALL_ROLES[number]
 
 const ROLE_LABELS: Record<RoleKey, string> = {
   ADMIN: 'Admin',
-  HEAD_OF_SUPERVISOR: 'Head of Supervisor',
-  SUPERVISOR_PASTOR: 'Supervisor Pastor',
-  HOD: 'HOD',
+  PASTOR: 'Pastor',
+  HEAD_OF_SUPERVISOR: 'Committee',
+  SUPERVISOR_PASTOR: 'Supervising Pastor',
+  HOD: 'HOSTs',
 }
 
 const ROLE_COLORS: Record<RoleKey, string> = {
   ADMIN: 'bg-sbc-red/10 text-sbc-red border border-sbc-red/20',
+  PASTOR: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800',
   HEAD_OF_SUPERVISOR: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800',
   SUPERVISOR_PASTOR: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800',
   HOD: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800',
@@ -68,6 +71,7 @@ const ROLE_COLORS: Record<RoleKey, string> = {
 
 const AVATAR_COLORS: Record<RoleKey, string> = {
   ADMIN: 'bg-sbc-red text-white',
+  PASTOR: 'bg-indigo-600 text-white',
   HEAD_OF_SUPERVISOR: 'bg-purple-600 text-white',
   SUPERVISOR_PASTOR: 'bg-blue-600 text-white',
   HOD: 'bg-green-600 text-white',
@@ -76,9 +80,10 @@ const AVATAR_COLORS: Record<RoleKey, string> = {
 const FILTER_OPTIONS = [
   { value: 'ALL', label: 'All' },
   { value: 'ADMIN', label: 'Admin' },
-  { value: 'HEAD_OF_SUPERVISOR', label: 'Head of Supervisor' },
-  { value: 'SUPERVISOR_PASTOR', label: 'Supervisor Pastor' },
-  { value: 'HOD', label: 'HOD' },
+  { value: 'PASTOR', label: 'Pastor' },
+  { value: 'HEAD_OF_SUPERVISOR', label: 'Committee' },
+  { value: 'SUPERVISOR_PASTOR', label: 'Supervising Pastor' },
+  { value: 'HOD', label: 'HOSTs' },
 ]
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
@@ -151,7 +156,7 @@ function RoleConditionalFields({
       {isHod && (
         <>
           <div>
-            <label className={labelCls}>Service Teams (for this HOD)</label>
+            <label className={labelCls}>Service Teams (for this HOSTs)</label>
             <Controller
               name="teamIds"
               control={control}
@@ -187,7 +192,7 @@ function RoleConditionalFields({
           </div>
 
           <div>
-            <label className={labelCls}>Supervisor Pastor (optional)</label>
+            <label className={labelCls}>Supervising Pastor (optional)</label>
             <Controller
               name="supervisorId"
               control={control}
@@ -205,24 +210,6 @@ function RoleConditionalFields({
         </>
       )}
 
-      {isPastor && (
-        <div>
-          <label className={labelCls}>Head of Supervisor (optional)</label>
-          <Controller
-            name="headId"
-            control={control}
-            defaultValue=""
-            render={({ field }) => (
-              <select {...field} className={inputCls}>
-                <option value="">— None —</option>
-                {allHeads.map((h) => (
-                  <option key={h.id} value={h.id}>{h.headName}</option>
-                ))}
-              </select>
-            )}
-          />
-        </div>
-      )}
     </>
   )
 }
@@ -258,20 +245,31 @@ function AddUserModal({
 
   async function onSubmit(values: AddFormValues) {
     setServerError('')
-    const res = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...values,
-        email: values.email?.trim() || undefined,
-        phone: values.phone?.trim() || undefined,
-        supervisorId: values.supervisorId?.trim() || undefined,
-        headId: values.headId?.trim() || undefined,
-      }),
-    })
-    const json = await res.json()
-    if (!res.ok) { setServerError(json.error ?? 'Something went wrong'); return }
-    onSuccess()
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...values,
+          email: values.email?.trim() || undefined,
+          phone: values.phone?.trim() || undefined,
+          supervisorId: values.supervisorId?.trim() || undefined,
+          headId: values.headId?.trim() || undefined,
+        }),
+      })
+      const json = await res.json().catch(() => ({})) as { error?: string }
+      if (!res.ok) {
+        const msg = json.error ?? 'Something went wrong'
+        setServerError(msg)
+        toast('error', msg)
+        return
+      }
+      onSuccess()
+    } catch {
+      const msg = 'Network error — please try again'
+      setServerError(msg)
+      toast('error', msg)
+    }
   }
 
   return (
@@ -420,22 +418,33 @@ function EditUserModal({
 
   async function onSubmit(values: EditFormValues) {
     setServerError('')
-    const res = await fetch(`/api/users/${user.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...values,
-        password: values.password?.trim() || undefined,
-        confirmPassword: undefined,
-        email: values.email?.trim() || null,
-        phone: values.phone?.trim() || null,
-        supervisorId: values.supervisorId?.trim() || null,
-        headId: values.headId?.trim() || null,
-      }),
-    })
-    const json = await res.json()
-    if (!res.ok) { setServerError(json.error ?? 'Something went wrong'); return }
-    onSuccess()
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...values,
+          password: values.password?.trim() || undefined,
+          confirmPassword: undefined,
+          email: values.email?.trim() || '',
+          phone: values.phone?.trim() || '',
+          supervisorId: values.supervisorId?.trim() || '',
+          headId: values.headId?.trim() || '',
+        }),
+      })
+      const json = await res.json().catch(() => ({})) as { error?: string }
+      if (!res.ok) {
+        const msg = json.error ?? 'Something went wrong'
+        setServerError(msg)
+        toast('error', msg)
+        return
+      }
+      onSuccess()
+    } catch {
+      const msg = 'Network error - please try again'
+      setServerError(msg)
+      toast('error', msg)
+    }
   }
 
   async function handleResetPassword() {
@@ -746,7 +755,7 @@ export default function UsersClient({
             />
             <button
               onClick={() => setShowAdd(true)}
-              className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-all duration-150"
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded transition-colors"
             >
               <UserPlus size={13} />
               Add User

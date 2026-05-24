@@ -18,7 +18,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: 'SBC Report App | The Summit Bible Church',
-  description: 'Service Team Management & Monthly Report System',
+  description: 'SBC Reporting System',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

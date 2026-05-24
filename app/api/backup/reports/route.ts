@@ -40,6 +40,11 @@ export async function GET(request: NextRequest) {
             pastor: { select: { pastorName: true } },
           },
         },
+        headReview: {
+          include: {
+            reviewedBy: { select: { firstName: true, lastName: true } },
+          },
+        },
         memberGrades: {
           include: { member: { select: { fullName: true, phone: true } } },
         },
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // Sheet 1: Report Summary
     const summaryRows = [
-      ['Team', 'HOD', 'Month', 'Year', 'Status', 'Members Enrolled', 'Members Present', 'Submitted At'],
+      ['Team', 'HOSTs', 'Month', 'Year', 'Status', 'Members Enrolled', 'Submitted At'],
       ...reports.map((r) => [
         r.serviceTeam.name,
         r.hodProfile.hodName,
@@ -58,7 +63,6 @@ export async function GET(request: NextRequest) {
         r.reportYear,
         r.status,
         r.totalMembersEnrolled,
-        r.totalMembersPresent ?? '',
         r.submittedAt?.toISOString() ?? '',
       ]),
     ]
@@ -66,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     // Sheet 2: Member Grades
     const gradeRows = [
-      ['Team', 'HOD', 'Month', 'Year', 'Member Name', 'Phone', 'General Attitude', 'Teamwork', 'Punctuality', 'Appearance', 'Attendance', 'Average Score'],
+      ['Team', 'HOSTs', 'Month', 'Year', 'Member Name', 'Phone', 'General Attitude', 'Teamwork', 'Punctuality', 'Appearance', 'Attendance', 'Average Score'],
       ...reports.flatMap((r) =>
         r.memberGrades.map((g) => [
           r.serviceTeam.name,
@@ -86,9 +90,24 @@ export async function GET(request: NextRequest) {
     ]
     xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet(gradeRows), 'Member Grades')
 
-    // Sheet 3: Pastor Reviews
-    const reviewRows = [
-      ['Team', 'HOD', 'Month', 'Year', 'Pastor', 'HOD Attitude', 'HOD Teamwork', 'HOD Punctuality', 'HOD Appearance', 'HOD Attendance', 'Comments'],
+    // Sheet 3: Supervising Pastor Reviews
+    const pastorReviewRows = [
+      [
+        'Team',
+        'HOSTs',
+        'Month',
+        'Year',
+        'Supervising Pastor',
+        'HOSTs Attitude',
+        'HOSTs Teamwork',
+        'HOSTs Punctuality',
+        'HOSTs Appearance',
+        'HOSTs Attendance',
+        'Comments',
+        'Signature',
+        'Review Date',
+        'Submitted At',
+      ],
       ...reports
         .filter((r) => r.pastorReview)
         .map((r) => [
@@ -103,9 +122,54 @@ export async function GET(request: NextRequest) {
           GRADE_NUMS[r.pastorReview!.hodAppearance] ?? '',
           GRADE_NUMS[r.pastorReview!.hodAttendance] ?? '',
           r.pastorReview!.comments ?? '',
+          r.pastorReview!.signature ?? '',
+          r.pastorReview!.reviewDate?.toISOString() ?? '',
+          r.pastorReview!.submittedAt?.toISOString() ?? '',
         ]),
     ]
-    xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet(reviewRows), 'Pastor Reviews')
+    xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet(pastorReviewRows), 'Supervising Pastor Reviews')
+
+    // Sheet 4: Committee Reviews
+    const committeeReviewRows = [
+      [
+        'Team',
+        'HOSTs',
+        'Month',
+        'Year',
+        'Committee Reviewer',
+        'Review',
+        'Supervising Pastor Reviewed',
+        'Supervising Pastor Performance',
+        'Signature',
+        'Review Date',
+        'Submitted At',
+      ],
+      ...reports
+        .filter((r) => r.headReview)
+        .map((r) => {
+          const reviewer = [
+            r.headReview!.reviewedBy.firstName,
+            r.headReview!.reviewedBy.lastName,
+          ].filter(Boolean).join(' ')
+
+          return [
+            r.serviceTeam.name,
+            r.hodProfile.hodName,
+            MONTHS[r.reportMonth - 1],
+            r.reportYear,
+            reviewer,
+            r.headReview!.overallComments ?? '',
+            r.headReview!.supervisorReviewed ?? '',
+            r.headReview!.supervisorPerformance
+              ? GRADE_NUMS[r.headReview!.supervisorPerformance] ?? r.headReview!.supervisorPerformance
+              : '',
+            r.headReview!.signature ?? '',
+            r.headReview!.reviewDate?.toISOString() ?? '',
+            r.headReview!.submittedAt?.toISOString() ?? '',
+          ]
+        }),
+    ]
+    xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet(committeeReviewRows), 'Committee Reviews')
 
     const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
     // Slice to own ArrayBuffer so TS sees ArrayBuffer (BodyInit-compatible)

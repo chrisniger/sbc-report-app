@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 const patchSchema = z.object({
   fieldLabel: z.string().min(1).optional(),
   fieldType: z.enum(['text', 'textarea', 'select', 'radio', 'checkbox', 'number']).optional(),
-  fieldOptions: z.string().optional().or(z.literal('')),
+  fieldOptions: z.string().optional().nullable(),
   isRequired: z.boolean().optional(),
   visibleToRoles: z.array(z.string()).optional(),
   fieldOrder: z.number().int().optional(),
@@ -28,7 +28,8 @@ export async function PATCH(
   let body: z.infer<typeof patchSchema>
   try {
     body = patchSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[PATCH /api/settings/fields/:id] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 

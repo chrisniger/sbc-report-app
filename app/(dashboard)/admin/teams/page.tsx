@@ -20,6 +20,13 @@ async function getData() {
           },
         },
         members: { select: { id: true } },
+        _count: {
+          select: {
+            reports: {
+              where: { status: { not: 'DRAFT' } },
+            },
+          },
+        },
         reports: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -43,8 +50,9 @@ async function getData() {
   const active = teams.filter((t) => t.isActive).length
 
   const safeTeams: TeamRecord[] = teams.map((t) => ({
-    ...t,
-    reports: t.reports.map((r) => ({
+      ...t,
+      submittedReportCount: t._count.reports,
+      reports: t.reports.map((r) => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
     })),
@@ -74,7 +82,7 @@ export default async function AdminTeamsPage() {
           SERVICE TEAMS
         </h1>
         <p className="text-xs text-gray-400 mt-0.5">
-          Manage service teams and their HOD / Pastor assignments
+          Manage service teams and their HOSTs / Supervising Pastor assignments
         </p>
       </div>
 

@@ -12,7 +12,7 @@ const createUserSchema = z.object({
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   phone: z.string().optional().or(z.literal('')),
   password: z.string().min(8, 'Min 8 characters'),
-  roles: z.array(z.enum(['ADMIN', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD'])).min(1, 'Select at least one role'),
+  roles: z.array(z.enum(['ADMIN', 'PASTOR', 'HEAD_OF_SUPERVISOR', 'SUPERVISOR_PASTOR', 'HOD'])).min(1, 'Select at least one role'),
   teamIds: z.array(z.string()).optional(),
   supervisorId: z.string().optional().or(z.literal('')),
   headId: z.string().optional().or(z.literal('')),
@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof createUserSchema>
   try {
     body = createUserSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/users] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
           phone,
           passwordHash,
           roles: body.roles,
-          mustChangePassword: true,
+          mustChangePassword: false,
         },
       })
 
@@ -161,6 +162,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ id: user.id }, { status: 201 })
   } catch (err) {
     console.error('[POST /api/users]', err)
-    return Response.json({ error: 'Internal server error' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    return Response.json({ error: message }, { status: 500 })
   }
 }

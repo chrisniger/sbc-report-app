@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof smtpSchema>
   try {
     body = smtpSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/settings/smtp] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 

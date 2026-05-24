@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { type Prisma } from '@prisma/client'
+import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 export async function GET(request: NextRequest) {
   const session = await auth()
@@ -34,11 +35,14 @@ export async function GET(request: NextRequest) {
       const hod = await prisma.hodProfile.findUnique({ where: { userId: session.user.id } })
       if (hod) baseWhere = { ...baseWhere, hodProfileId: hod.id }
     } else if (roles.includes('SUPERVISOR_PASTOR')) {
-      const pastor = await prisma.pastorProfile.findUnique({
-        where: { userId: session.user.id },
-        include: { serviceTeams: { select: { id: true } } },
-      })
-      if (pastor) baseWhere = { ...baseWhere, serviceTeamId: { in: pastor.serviceTeams.map(t => t.id) } }
+      const scope = await getSupervisedPastorScope(session.user.id)
+      if (scope) {
+        baseWhere = {
+          ...baseWhere,
+          hodProfileId: { in: scope.hodIds },
+          serviceTeamId: { in: scope.teamIds },
+        }
+      }
     }
 
     const reports = await prisma.hodReport.findMany({

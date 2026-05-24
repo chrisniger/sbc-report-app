@@ -6,8 +6,8 @@ import { prisma } from '@/lib/db'
 const notifSchema = z.object({
   event: z.string().min(1, 'Required'),
   recipientEmail: z.string().email('Valid email required'),
-  recipientName: z.string().optional().or(z.literal('')),
-  serviceTeamId: z.string().optional().or(z.literal('')),
+  recipientName: z.string().optional().nullable(),
+  serviceTeamId: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
 })
 
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
   let body: z.infer<typeof notifSchema>
   try {
     body = notifSchema.parse(await request.json())
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/settings/notifications] validation:', err)
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
 

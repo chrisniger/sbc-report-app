@@ -279,11 +279,11 @@ function buildSubject(event: MailEvent, ctx: MailContext): string {
   const team = ctx.teamName ? ` — ${ctx.teamName}` : ''
   switch (event) {
     case 'HOD_REPORT_SUBMITTED':
-      return `HOD Report Submitted${team}${period}`
+      return `HOSTs Report Submitted${team}${period}`
     case 'PASTOR_REVIEW_COMPLETED':
       return `Pastor Review Completed${team}${period}`
     case 'HEAD_REVIEW_COMPLETED':
-      return `Head Review Completed${team}${period}`
+      return `Committee Review Completed${team}${period}`
   }
 }
 
@@ -293,7 +293,7 @@ function buildHtmlBody(event: MailEvent, ctx: MailContext): string {
   switch (event) {
     case 'HOD_REPORT_SUBMITTED':
       return `
-        <h2 style="margin:0 0 8px;font-size:20px;color:#111111;">New HOD Report Submitted</h2>
+        <h2 style="margin:0 0 8px;font-size:20px;color:#111111;">New HOSTs Report Submitted</h2>
         ${greeting}
         <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.6;">
           A monthly report has been submitted and is awaiting your review.
@@ -301,7 +301,7 @@ function buildHtmlBody(event: MailEvent, ctx: MailContext): string {
         ${buildInfoTable([
           ['Service Team', ctx.teamName],
           ['Period', ctx.month],
-          ['Head of Department', ctx.hodName],
+          ['HOSTs', ctx.hodName],
         ])}
         <p style="margin:16px 0 0;font-size:13px;color:#777777;">
           Please log in to the SBC Report System to review and process this report.
@@ -312,20 +312,20 @@ function buildHtmlBody(event: MailEvent, ctx: MailContext): string {
         <h2 style="margin:0 0 8px;font-size:20px;color:#111111;">Pastor Review Completed</h2>
         ${greeting}
         <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.6;">
-          A supervisor pastor has completed their review of an HOD report.
+          A supervising pastor has completed their review of a HOSTs report.
         </p>
         ${buildInfoTable([
           ['Service Team', ctx.teamName],
           ['Period', ctx.month],
-          ['Supervisor Pastor', ctx.pastorName],
+          ['Supervising Pastor', ctx.pastorName],
         ])}
         <p style="margin:16px 0 0;font-size:13px;color:#777777;">
-          Log in to view the pastor&rsquo;s review and submit your head review.
+          Log in to view the supervising pastor&rsquo;s review and submit your committee review.
         </p>`
 
     case 'HEAD_REVIEW_COMPLETED':
       return `
-        <h2 style="margin:0 0 8px;font-size:20px;color:#111111;">Head Review Completed</h2>
+        <h2 style="margin:0 0 8px;font-size:20px;color:#111111;">Committee Review Completed</h2>
         ${greeting}
         <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.6;">
           The head of supervisor has completed their review of the following report.
@@ -364,11 +364,11 @@ function buildTextBody(event: MailEvent, ctx: MailContext): string {
   switch (event) {
     case 'HOD_REPORT_SUBMITTED':
       return [
-        'A new HOD report has been submitted.',
+        'A new HOSTs report has been submitted.',
         '',
         `Service Team : ${ctx.teamName ?? 'N/A'}`,
         `Period       : ${ctx.month ?? 'N/A'}`,
-        `HOD          : ${ctx.hodName ?? 'N/A'}`,
+        `HOSTs        : ${ctx.hodName ?? 'N/A'}`,
       ].join('\n')
     case 'PASTOR_REVIEW_COMPLETED':
       return [

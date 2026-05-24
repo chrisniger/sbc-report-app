@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import ReportDetail from '@/components/report/ReportDetail'
 import type { ReportData, MemberGradeRow, PastorReviewRow, HeadReviewRow } from '@/components/report/ReportDetail'
+import { normalizeReportGoals } from '@/lib/report-goals'
 
 export default async function AdminReportDetailPage({
   params,
@@ -46,10 +47,19 @@ export default async function AdminReportDetailPage({
     reportYear: report.reportYear,
     status: report.status,
     totalMembersEnrolled: report.totalMembersEnrolled,
-    totalMembersPresent: report.totalMembersPresent,
-    totalMembersAbsent: report.totalMembersAbsent,
     generalObservations: report.generalObservations,
     challengesEncountered: report.challengesEncountered,
+    goalsForMonth: normalizeReportGoals(report.goalsForMonth),
+    challengesForMonth: report.challengesForMonth,
+    goalsNextMonth: report.goalsNextMonth,
+    serviceTeamNeeds: report.serviceTeamNeeds,
+    budget: report.budget,
+    budgetFinancing: report.budgetFinancing,
+    serviceTeamLeaderComments: report.serviceTeamLeaderComments,
+    confirmation: report.confirmation,
+    signature: report.signature,
+    confirmationDate: report.confirmationDate?.toISOString() ?? null,
+    naExplanation: report.naExplanation,
     hodSignature: report.hodSignature,
     submittedAt: report.submittedAt?.toISOString() ?? null,
   }

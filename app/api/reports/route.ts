@@ -19,17 +19,73 @@ const memberGradeZ = z.object({
   attendance: gradeZ,
 })
 
+const goalZ = z.object({
+  goalNumber: z.number().int().min(1).max(5),
+  goal: z.string(),
+  achieved: z.enum(['Not yet', 'Yes', 'Partial']).or(z.literal('')),
+  remarks: z.string().optional().nullable(),
+})
+
 const reportBodySchema = z.object({
   teamId: z.string().min(1),
   reportMonth: z.number().int().min(1).max(12),
   reportYear: z.number().int().min(2026).max(2035),
   assistantOne: z.string().optional(),
   assistantTwo: z.string().optional(),
-  totalMembersPresent: z.number().int().min(0),
   generalObservations: z.string().optional(),
   challengesEncountered: z.string().optional(),
+  goalsForMonth: z.array(goalZ).min(1).max(5).optional(),
+  challengesForMonth: z.string().optional(),
+  goalsNextMonth: z.string().optional(),
+  serviceTeamNeeds: z.string().optional(),
+  budget: z.string().optional(),
+  budgetFinancing: z.enum(['Internally (Service Team)', 'Summit Bible Church']).or(z.literal('')).optional(),
+  serviceTeamLeaderComments: z.string().optional(),
+  confirmation: z.boolean().optional(),
+  signature: z.string().optional(),
+  confirmationDate: z.string().optional(),
+  currentStep: z.number().int().min(1).max(2).optional(),
+  naExplanation: z.string().optional(),
   status: z.enum(['DRAFT', 'SUBMITTED']),
   memberGrades: z.array(memberGradeZ),
+}).superRefine((body, ctx) => {
+  if (body.status !== 'SUBMITTED') return
+
+  body.goalsForMonth?.forEach((goal, index) => {
+    if (!goal.goal.trim()) {
+      ctx.addIssue({ code: 'custom', path: ['goalsForMonth', index, 'goal'], message: 'Goal is required' })
+    }
+    if (!goal.achieved) {
+      ctx.addIssue({ code: 'custom', path: ['goalsForMonth', index, 'achieved'], message: 'Achieved status is required' })
+    }
+  })
+
+  if (!body.goalsForMonth?.length) {
+    ctx.addIssue({ code: 'custom', path: ['goalsForMonth'], message: 'At least one goal is required' })
+  }
+  if (!body.goalsNextMonth?.trim()) {
+    ctx.addIssue({ code: 'custom', path: ['goalsNextMonth'], message: 'Goals for next month are required' })
+  }
+  if (!body.serviceTeamNeeds?.trim()) {
+    ctx.addIssue({ code: 'custom', path: ['serviceTeamNeeds'], message: 'Service team needs are required' })
+  }
+  if (!body.serviceTeamLeaderComments?.trim()) {
+    ctx.addIssue({ code: 'custom', path: ['serviceTeamLeaderComments'], message: 'Comments are required' })
+  }
+  if (!body.confirmation) {
+    ctx.addIssue({ code: 'custom', path: ['confirmation'], message: 'Confirmation is required' })
+  }
+  if (!body.signature?.trim()) {
+    ctx.addIssue({ code: 'custom', path: ['signature'], message: 'Signature is required' })
+  }
+  if (!body.confirmationDate) {
+    ctx.addIssue({ code: 'custom', path: ['confirmationDate'], message: 'Date is required' })
+  }
+
+  const hasNa = body.memberGrades.some((grade) => Object.values(grade).includes('NOT_APPLICABLE'))
+  if (hasNa && !body.naExplanation?.trim()) {
+    ctx.addIssue({ code: 'custom', path: ['naExplanation'], message: 'N/A explanation is required' })
+  }
 })
 
 type ReportBody = z.infer<typeof reportBodySchema>
@@ -49,7 +105,7 @@ export async function POST(request: NextRequest) {
     where: { userId: session.user.id },
   })
   if (!hodProfile) {
-    return Response.json({ error: 'HOD profile not found' }, { status: 404 })
+    return Response.json({ error: 'HOSTs profile not found' }, { status: 404 })
   }
 
   let body: ReportBody
@@ -89,7 +145,6 @@ export async function POST(request: NextRequest) {
   }
 
   const totalEnrolled = body.memberGrades.length
-  const totalAbsent = Math.max(0, totalEnrolled - body.totalMembersPresent)
 
   const reportData = {
     reportMonth: body.reportMonth,
@@ -99,10 +154,25 @@ export async function POST(request: NextRequest) {
     assistantOne: body.assistantOne?.trim() || null,
     assistantTwo: body.assistantTwo?.trim() || null,
     totalMembersEnrolled: totalEnrolled,
-    totalMembersPresent: body.totalMembersPresent,
-    totalMembersAbsent: totalAbsent,
     generalObservations: body.generalObservations?.trim() || null,
     challengesEncountered: body.challengesEncountered?.trim() || null,
+    goalsForMonth: (body.goalsForMonth ?? []).map((goal, index) => ({
+      goalNumber: index + 1,
+      goal: goal.goal.trim(),
+      achieved: goal.achieved || 'Not yet',
+      remarks: goal.remarks?.trim() || null,
+    })),
+    challengesForMonth: body.challengesForMonth?.trim() || null,
+    goalsNextMonth: body.goalsNextMonth?.trim() || null,
+    serviceTeamNeeds: body.serviceTeamNeeds?.trim() || null,
+    budget: body.budget?.trim() || null,
+    budgetFinancing: body.budgetFinancing || null,
+    serviceTeamLeaderComments: body.serviceTeamLeaderComments?.trim() || null,
+    confirmation: body.confirmation ?? false,
+    signature: body.signature?.trim() || null,
+    confirmationDate: body.confirmationDate ? new Date(body.confirmationDate) : null,
+    currentStep: body.currentStep ?? 1,
+    naExplanation: body.naExplanation?.trim() || null,
     submittedAt: body.status === 'SUBMITTED' ? new Date() : null,
     hodProfileId: hodProfile.id,
     serviceTeamId: body.teamId,
@@ -149,7 +219,7 @@ export async function POST(request: NextRequest) {
     data: {
       userId: session.user.id,
       action: body.status === 'SUBMITTED' ? 'REPORT_SUBMITTED' : 'REPORT_SAVED_DRAFT',
-      description: `HOD "${hodProfile.hodName}" ${body.status === 'SUBMITTED' ? 'submitted' : 'saved draft of'} report for team "${team.name}" — ${body.reportMonth}/${body.reportYear}`,
+      description: `HOSTs "${hodProfile.hodName}" ${body.status === 'SUBMITTED' ? 'submitted' : 'saved draft of'} report for team "${team.name}" — ${body.reportMonth}/${body.reportYear}`,
       entityType: 'HodReport',
       entityId: report.id,
     },

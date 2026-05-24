@@ -26,8 +26,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   SUBMITTED: 'Submitted',
-  PASTOR_REVIEWED: 'Pastor Reviewed',
-  HEAD_REVIEWED: 'Head Reviewed',
+  PASTOR_REVIEWED: 'Supervising Pastor Reviewed',
+  HEAD_REVIEWED: 'Committee Reviewed',
   COMPLETED: 'Completed',
   DRAFT: 'Pending',
   OVERDUE: 'Overdue',
