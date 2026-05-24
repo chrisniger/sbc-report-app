@@ -113,7 +113,7 @@ async function getData() {
     for (const teamName of top5Teams) {
       const scores = trendReports
         .filter((r: TrendReport) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.name === teamName)
-        .flatMap(r => r.memberGrades.map(g => g.averageScore).filter((s): s is number => s != null))
+        .flatMap((r: TrendReport) => r.memberGrades.map(g => g.averageScore).filter((s): s is number => s != null))
       point[teamName] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null
     }
     return point
