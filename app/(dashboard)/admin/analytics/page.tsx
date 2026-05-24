@@ -70,6 +70,11 @@ async function getData() {
 
   type TrendReport = (typeof trendReports)[number]
   type TrendMemberGrade = TrendReport['memberGrades'][number]
+  type MonthPoint = (typeof months12)[number]
+  type TopMemberGroup = (typeof topMemberGroups)[number]
+  type MemberDetail = (typeof memberDetails)[number]
+  type StatusGroup = (typeof statusGroups)[number]
+  type TeamAverage = { name: string; avg: number }
 
   // Team scores for current month
   const currentReports = trendReports.filter(
@@ -83,14 +88,14 @@ async function getData() {
     }
   }
   const teamScores: TeamScorePoint[] = [...teamScoreMap.entries()]
-    .map(([name, { scores }]) => ({
+    .map(([name, { scores }]: [string, { scores: number[] }]) => ({
       name,
       displayName: name.length > 14 ? name.slice(0, 13) + '…' : name,
-      avgScore: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      avgScore: scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0,
       membersGraded: scores.length,
     }))
-    .filter(t => t.membersGraded > 0)
-    .sort((a, b) => b.avgScore - a.avgScore)
+    .filter((t: TeamScorePoint) => t.membersGraded > 0)
+    .sort((a: TeamScorePoint, b: TeamScorePoint) => b.avgScore - a.avgScore)
 
   // Top 5 teams for trend
   const allTeamMap = new Map<string, number[]>()
@@ -101,35 +106,35 @@ async function getData() {
     }
   }
   const top5Teams = [...allTeamMap.entries()]
-    .map(([name, scores]) => ({
+    .map(([name, scores]: [string, number[]]) => ({
       name,
-      avg: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      avg: scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : 0,
     }))
-    .sort((a, b) => b.avg - a.avg)
+    .sort((a: TeamAverage, b: TeamAverage) => b.avg - a.avg)
     .slice(0, 5)
-    .map(t => t.name)
+    .map((t: TeamAverage) => t.name)
 
-  const trendData: TrendPoint[] = months12.map(m => {
+  const trendData: TrendPoint[] = months12.map((m: MonthPoint) => {
     const point: TrendPoint = { label: m.label }
     for (const teamName of top5Teams) {
       const scores = trendReports
         .filter((r: TrendReport) => r.reportMonth === m.month && r.reportYear === m.year && r.serviceTeam.name === teamName)
         .flatMap((r: TrendReport) => r.memberGrades.map((g: TrendMemberGrade) => g.averageScore).filter((s: unknown): s is number => s != null))
-      point[teamName] = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null
+      point[teamName] = scores.length ? scores.reduce((a: number, b: number) => a + b, 0) / scores.length : null
     }
     return point
   })
 
   // Top members
-  const memberIds = topMemberGroups.map(g => g.memberId)
+  const memberIds = topMemberGroups.map((g: TopMemberGroup) => g.memberId)
   const memberDetails = await prisma.serviceTeamMember.findMany({
     where: { id: { in: memberIds } },
     include: { teamAssignments: { take: 1, include: { team: { select: { name: true } } } } },
   })
-  const memberMap = new Map(memberDetails.map(m => [m.id, m]))
+  const memberMap = new Map(memberDetails.map((m: MemberDetail) => [m.id, m]))
   const topMembers: MemberRow[] = topMemberGroups
-    .filter(g => g._avg.averageScore != null)
-    .map((g, i) => {
+    .filter((g: TopMemberGroup) => g._avg.averageScore != null)
+    .map((g: TopMemberGroup, i: number) => {
       const m = memberMap.get(g.memberId)
       return {
         rank: i + 1,
@@ -149,7 +154,7 @@ async function getData() {
       submissionRate: activeTeams > 0 ? Math.round((thisMonthCount / activeTeams) * 100) : 0,
     },
     teamScores,
-    statusDistribution: statusGroups.map(g => ({ status: g.status as string, count: g._count.id })),
+    statusDistribution: statusGroups.map((g: StatusGroup) => ({ status: g.status as string, count: g._count.id })),
     trendData,
     trendTeams: top5Teams,
     topMembers,
