@@ -136,7 +136,10 @@ async function getData() {
     where: { id: { in: memberIds } },
     include: { teamAssignments: { take: 1, include: { team: { select: { name: true } } } } },
   })
-  const memberMap = new Map(memberDetails.map((m: MemberDetail) => [m.id, m]))
+  const memberMap = new Map<string, MemberDetail>()
+  for (const member of memberDetails as MemberDetail[]) {
+    memberMap.set(member.id, member)
+  }
   const topMembers: MemberRow[] = topMemberGroups
     .filter((g: TopMemberGroup) => g._avg.averageScore != null)
     .map((g: TopMemberGroup, i: number) => {
