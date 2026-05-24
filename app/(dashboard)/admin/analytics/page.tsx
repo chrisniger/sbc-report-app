@@ -5,10 +5,19 @@ import AdminAnalyticsClient from '@/components/analytics/AdminAnalyticsClient'
 import type { TeamScorePoint } from '@/components/charts/TeamScoreBar'
 import type { TrendPoint } from '@/components/charts/ScoreTrendChart'
 import type { MemberRow } from '@/components/charts/MemberScoreTable'
+import type { Prisma } from '@prisma/client'
+
+type MemberDetail = Prisma.ServiceTeamMemberGetPayload<{
+  include: {
+    teamAssignments: {
+      include: { team: { select: { name: true } } }
+    }
+  }
+}>
 
 function build12Months() {
   const now = new Date()
-  return Array.from({ length: 12 }, (_, i) => {
+  return Array.from({ length: 12 }, (_: unknown, i: number) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
     return {
       month: d.getMonth() + 1,
@@ -50,7 +59,7 @@ async function getData() {
     }),
     prisma.hodReport.findMany({
       where: {
-        OR: months12.map(m => ({ reportMonth: m.month, reportYear: m.year })),
+        OR: months12.map((m: (typeof months12)[number]) => ({ reportMonth: m.month, reportYear: m.year })),
         status: { not: 'DRAFT' },
       },
       include: {
@@ -72,7 +81,6 @@ async function getData() {
   type TrendMemberGrade = TrendReport['memberGrades'][number]
   type MonthPoint = (typeof months12)[number]
   type TopMemberGroup = (typeof topMemberGroups)[number]
-  type MemberDetail = (typeof memberDetails)[number]
   type StatusGroup = (typeof statusGroups)[number]
   type TeamAverage = { name: string; avg: number }
 
