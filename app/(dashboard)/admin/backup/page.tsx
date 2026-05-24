@@ -19,7 +19,9 @@ async function getData() {
     }),
   ])
 
-  const activityLogs: ActivityEntry[] = activities.map((a) => ({
+  type ActivityRecord = (typeof activities)[number]
+
+  const activityLogs: ActivityEntry[] = activities.map((a: ActivityRecord) => ({
     id: a.id,
     action: a.action,
     description: a.description,
