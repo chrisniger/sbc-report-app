@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
-import { type Prisma } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import { Users, FileText, ClipboardCheck, CheckSquare } from 'lucide-react'
 import StatCard from '@/components/ui/StatCard'

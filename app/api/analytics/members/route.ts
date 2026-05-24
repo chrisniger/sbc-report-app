@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { type Prisma } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import { getSupervisedPastorScope } from '@/lib/pastor-scope'
 
 export async function GET(request: NextRequest) {
