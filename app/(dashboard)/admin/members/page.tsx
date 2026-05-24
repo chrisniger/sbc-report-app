@@ -36,7 +36,9 @@ export default async function AdminMembersPage() {
 
   const { members, teams } = await getData()
 
-  const safeMembers: MemberRecord[] = members.map((m) => ({
+  type MemberSource = (typeof members)[number]
+
+  const safeMembers: MemberRecord[] = members.map((m: MemberSource) => ({
     ...m,
     createdBy: m.createdBy ?? null,
   }))

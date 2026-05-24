@@ -44,15 +44,18 @@ async function getData() {
     }),
   ])
 
-  const total = teams.length
-  const assigned = teams.filter((t) => t.hodId !== null).length
-  const unassigned = total - assigned
-  const active = teams.filter((t) => t.isActive).length
+  type TeamSource = (typeof teams)[number]
+  type TeamReportSource = TeamSource['reports'][number]
 
-  const safeTeams: TeamRecord[] = teams.map((t) => ({
+  const total = teams.length
+  const assigned = teams.filter((t: TeamSource) => t.hodId !== null).length
+  const unassigned = total - assigned
+  const active = teams.filter((t: TeamSource) => t.isActive).length
+
+  const safeTeams: TeamRecord[] = teams.map((t: TeamSource) => ({
       ...t,
       submittedReportCount: t._count.reports,
-      reports: t.reports.map((r) => ({
+      reports: t.reports.map((r: TeamReportSource) => ({
       ...r,
       createdAt: r.createdAt.toISOString(),
     })),

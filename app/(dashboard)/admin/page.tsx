@@ -63,6 +63,8 @@ export default async function AdminDashboardPage() {
 
   const { teamCount, reportCount, memberCount, pendingCount, submissions, activities, month, year } =
     await getData()
+  type SubmissionRecord = (typeof submissions)[number]
+  type ActivityRecord = (typeof activities)[number]
 
   return (
     <div className="space-y-7">
@@ -89,12 +91,12 @@ export default async function AdminDashboardPage() {
             </div>
             <div className="flex gap-2">
               <select defaultValue={month} className="text-sm bg-white dark:bg-white/[0.055] border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-slate-900 dark:text-white outline-none shadow-sm">
-                {MONTHS.map((m, i) => (
+                {MONTHS.map((m: string, i: number) => (
                   <option key={m} value={i + 1}>{m}</option>
                 ))}
               </select>
               <select defaultValue={year} className="text-sm bg-white dark:bg-white/[0.055] border border-slate-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-slate-900 dark:text-white outline-none shadow-sm">
-                {Array.from({ length: 10 }, (_, i) => 2026 + i).map((y) => (
+                {Array.from({ length: 10 }, (_: unknown, i: number) => 2026 + i).map((y: number) => (
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
@@ -118,7 +120,7 @@ export default async function AdminDashboardPage() {
                     </td>
                   </tr>
                 ) : (
-                  submissions.map((r) => (
+                  submissions.map((r: SubmissionRecord) => (
                     <tr key={r.id} className="border-b border-slate-200/80 dark:border-white/5 hover:bg-sbc-red/[0.025] dark:hover:bg-white/[0.035] transition-colors">
                       <td className="px-7 py-5 text-slate-950 dark:text-white font-semibold">{r.serviceTeam.name}</td>
                       <td className="px-7 py-5 text-slate-600 dark:text-white/60">{r.hodProfile.hodName}</td>
@@ -151,11 +153,11 @@ export default async function AdminDashboardPage() {
             </div>
             <div className="grid grid-cols-[32px_1fr] gap-3">
               <div className="flex h-40 flex-col justify-between text-sm text-slate-500 dark:text-white/55">
-                {[100, 75, 50, 25, 0].map((tick) => <span key={tick}>{tick}</span>)}
+                {[100, 75, 50, 25, 0].map((tick: number) => <span key={tick}>{tick}</span>)}
               </div>
               <div>
                 <div className="flex h-40 items-end gap-4 border-l border-b border-slate-200 bg-[linear-gradient(to_bottom,rgba(148,163,184,0.22)_1px,transparent_1px)] bg-[length:100%_25%] pl-4 dark:border-white/10 dark:bg-[linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)]">
-                  {trendScores.map((score, i) => (
+                  {trendScores.map((score: number, i: number) => (
                     <div
                       key={trendMonths[i]}
                       className="flex-1 rounded-t-md bg-gradient-to-t from-sbc-red to-rose-400 shadow-[0_10px_18px_rgba(200,16,46,0.22)]"
@@ -164,7 +166,7 @@ export default async function AdminDashboardPage() {
                   ))}
                 </div>
                 <div className="flex justify-between pl-4 pt-3 text-sm text-slate-500 dark:text-white/70">
-                  {trendMonths.map((m) => (
+                  {trendMonths.map((m: string) => (
                     <span key={m}>{m}</span>
                   ))}
                 </div>
@@ -187,7 +189,7 @@ export default async function AdminDashboardPage() {
               {activities.length === 0 ? (
                 <p className="py-6 text-slate-400 text-sm text-center">No recent activity</p>
               ) : (
-                activities.slice(0, 1).map((a) => (
+                activities.slice(0, 1).map((a: ActivityRecord) => (
                   <div key={a.id} className="relative flex gap-4">
                     <div className="relative flex flex-col items-center">
                       <span className="h-3 w-3 rounded-full bg-sbc-red" />

@@ -64,7 +64,9 @@ export default async function AdminReportDetailPage({
     submittedAt: report.submittedAt?.toISOString() ?? null,
   }
 
-  const memberGrades: MemberGradeRow[] = report.memberGrades.map((g) => ({
+  type MemberGradeSource = (typeof report.memberGrades)[number]
+
+  const memberGrades: MemberGradeRow[] = report.memberGrades.map((g: MemberGradeSource) => ({
     id: g.id,
     memberFullName: g.member.fullName,
     generalAttitude: g.generalAttitude,

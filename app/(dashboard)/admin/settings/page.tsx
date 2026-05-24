@@ -20,12 +20,17 @@ async function getData() {
     }),
   ])
 
-  const teamIds = [...new Set(notifRaw.map((n) => n.serviceTeamId).filter(Boolean))] as string[]
+  type NotificationSource = (typeof notifRaw)[number]
+  type NotificationTeam = { id: string; name: string }
+  type PeriodSource = (typeof periodsRaw)[number]
+  type FieldSource = (typeof fieldsRaw)[number]
+
+  const teamIds = [...new Set(notifRaw.map((n: NotificationSource) => n.serviceTeamId).filter(Boolean))] as string[]
   const notifTeams =
     teamIds.length > 0
       ? await prisma.serviceTeam.findMany({ where: { id: { in: teamIds } }, select: { id: true, name: true } })
       : []
-  const teamMap = Object.fromEntries(notifTeams.map((t) => [t.id, t.name]))
+  const teamMap = Object.fromEntries(notifTeams.map((t: NotificationTeam) => [t.id, t.name]))
 
   const smtp: SmtpRecord | null = smtpRaw
     ? {
@@ -41,20 +46,20 @@ async function getData() {
       }
     : null
 
-  const notifications: NotifRecord[] = notifRaw.map((n) => ({
+  const notifications: NotifRecord[] = notifRaw.map((n: NotificationSource) => ({
     ...n,
     serviceTeamName: n.serviceTeamId ? (teamMap[n.serviceTeamId] ?? null) : null,
     createdAt: n.createdAt.toISOString(),
   }))
 
-  const periods: PeriodRecord[] = periodsRaw.map((p) => ({
+  const periods: PeriodRecord[] = periodsRaw.map((p: PeriodSource) => ({
     ...p,
     deadline: p.deadline?.toISOString() ?? null,
     createdAt: undefined,
     updatedAt: undefined,
   })) as PeriodRecord[]
 
-  const fields: FieldRecord[] = fieldsRaw.map((f) => ({
+  const fields: FieldRecord[] = fieldsRaw.map((f: FieldSource) => ({
     ...f,
     createdAt: undefined,
     updatedAt: undefined,

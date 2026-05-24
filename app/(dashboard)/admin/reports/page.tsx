@@ -33,7 +33,9 @@ async function getData() {
     }),
   ])
 
-  const safeReports: ReportRecord[] = reports.map((r) => ({
+  type ReportSource = (typeof reports)[number]
+
+  const safeReports: ReportRecord[] = reports.map((r: ReportSource) => ({
     ...r,
     submittedAt: r.submittedAt?.toISOString() ?? null,
     pastorReview: r.pastorReview
@@ -46,10 +48,10 @@ async function getData() {
 
   const stats: SummaryStats = {
     total: reports.length,
-    submitted: reports.filter((r) => r.status === 'SUBMITTED').length,
-    pastorReviewed: reports.filter((r) => r.status === 'PASTOR_REVIEWED').length,
-    headReviewed: reports.filter((r) => r.status === 'HEAD_REVIEWED' || r.status === 'COMPLETED').length,
-    pending: reports.filter((r) => r.status === 'SUBMITTED').length,
+    submitted: reports.filter((r: ReportSource) => r.status === 'SUBMITTED').length,
+    pastorReviewed: reports.filter((r: ReportSource) => r.status === 'PASTOR_REVIEWED').length,
+    headReviewed: reports.filter((r: ReportSource) => r.status === 'HEAD_REVIEWED' || r.status === 'COMPLETED').length,
+    pending: reports.filter((r: ReportSource) => r.status === 'SUBMITTED').length,
   }
 
   return { reports: safeReports, teams, pastors, stats }
