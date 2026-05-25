@@ -13,6 +13,21 @@ function readNumber(value: string | null | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function logDatabaseDriverError(label: string, error: unknown) {
+  if (error instanceof Error) {
+    console.error(`[database:${label}]`, {
+      name: error.name,
+      message: error.message,
+      code: 'code' in error ? error.code : undefined,
+      sqlState: 'sqlState' in error ? error.sqlState : undefined,
+      sqlMessage: 'sqlMessage' in error ? error.sqlMessage : undefined,
+    })
+    return
+  }
+
+  console.error(`[database:${label}]`, error)
+}
+
 function createPoolConfig(databaseUrl: string): PoolConfig | string {
   try {
     const url = new URL(databaseUrl)
@@ -39,12 +54,25 @@ function createPoolConfig(databaseUrl: string): PoolConfig | string {
           url.searchParams.get('pool_timeout'),
         30000
       ),
+      connectTimeout: readNumber(
+        process.env.DB_CONNECT_TIMEOUT ?? url.searchParams.get('connectTimeout'),
+        10000
+      ),
       idleTimeout: readNumber(
         process.env.DB_IDLE_TIMEOUT ?? url.searchParams.get('idleTimeout'),
         60
       ),
+      initializationTimeout: readNumber(
+        process.env.DB_INITIALIZATION_TIMEOUT ??
+          url.searchParams.get('initializationTimeout'),
+        10000
+      ),
       minimumIdle: 0,
       prepareCacheLength: 0,
+      logger: {
+        error: (error) => logDatabaseDriverError('mariadb-error', error),
+        warning: (message) => console.warn('[database:mariadb-warning]', message),
+      },
     }
   } catch {
     return databaseUrl
@@ -52,7 +80,10 @@ function createPoolConfig(databaseUrl: string): PoolConfig | string {
 }
 
 function createClient() {
-  const adapter = new PrismaMariaDb(createPoolConfig(process.env.DATABASE_URL!))
+  const adapter = new PrismaMariaDb(createPoolConfig(process.env.DATABASE_URL!), {
+    onConnectionError: (error) =>
+      logDatabaseDriverError('connection-error', error),
+  })
   return new PrismaClient({ adapter })
 }
 
