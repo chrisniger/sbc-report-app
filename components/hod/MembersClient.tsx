@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { UserPlus, Upload, X, Loader2, Download, CheckCircle, AlertCircle, Pencil } from 'lucide-react'
+import { UserPlus, Upload, X, Loader2, Download, CheckCircle, AlertCircle, Pencil, Trash2 } from 'lucide-react'
 import { ABUJA_LOCATIONS } from '@/lib/abuja-locations'
 
 export interface TeamMember {
@@ -489,6 +489,7 @@ export default function MembersClient({ teams, openAddMember = false }: Props) {
   const [showAdd, setShowAdd] = useState(openAddMember)
   const [showCsv, setShowCsv] = useState(false)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null)
 
   const activeTeam = teams.find((t) => t.id === activeTeamId)
 
@@ -499,6 +500,28 @@ export default function MembersClient({ teams, openAddMember = false }: Props) {
 
   function handleSuccess() {
     router.refresh()
+  }
+
+  async function removeFromActiveTeam(member: TeamMember) {
+    if (!activeTeam) return
+    if (!confirm(`Remove ${member.fullName} from "${activeTeam.name}"? The member will remain in the central database.`)) {
+      return
+    }
+
+    setRemovingMemberId(member.id)
+    try {
+      const res = await fetch(`/api/members/${member.id}/teams/${activeTeam.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: string }
+        alert(json.error ?? 'Failed to remove member from team.')
+        return
+      }
+      router.refresh()
+    } catch {
+      alert('Network error. Try again.')
+    } finally {
+      setRemovingMemberId(null)
+    }
   }
 
   return (
@@ -608,13 +631,27 @@ export default function MembersClient({ teams, openAddMember = false }: Props) {
                         {member.homeLocation ?? '—'}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={() => setEditingMember(member)}
-                          className="p-1.5 text-gray-400 hover:text-sbc-red transition-colors"
-                          title="Edit member"
-                        >
-                          <Pencil size={14} />
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setEditingMember(member)}
+                            className="p-1.5 text-gray-400 hover:text-sbc-red transition-colors"
+                            title="Edit member"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => removeFromActiveTeam(member)}
+                            disabled={removingMemberId === member.id}
+                            className="p-1.5 text-gray-400 hover:text-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Remove from this team"
+                          >
+                            {removingMemberId === member.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
