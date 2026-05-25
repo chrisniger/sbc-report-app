@@ -40,6 +40,9 @@ type NotificationItem = {
   kind: 'report' | 'review' | 'system'
 }
 
+const NOTIFICATION_SEEN_KEY = 'sbc-notifications-seen-at'
+const NOTIFICATION_DISMISSED_KEY = 'sbc-notifications-dismissed-ids'
+
 function relativeTime(value: string) {
   const diff = Date.now() - new Date(value).getTime()
   const minutes = Math.max(0, Math.floor(diff / 60000))
@@ -48,6 +51,18 @@ function relativeTime(value: string) {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
+}
+
+function getDismissedIds() {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(NOTIFICATION_DISMISSED_KEY) ?? '[]') as string[])
+  } catch {
+    return new Set<string>()
+  }
+}
+
+function saveDismissedIds(ids: Set<string>) {
+  window.localStorage.setItem(NOTIFICATION_DISMISSED_KEY, JSON.stringify([...ids]))
 }
 
 export default function Topbar({ onMenuClick }: TopbarProps) {
@@ -60,20 +75,36 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   async function loadNotifications() {
     const since = typeof window !== 'undefined'
-      ? window.localStorage.getItem('sbc-notifications-seen-at')
+      ? window.localStorage.getItem(NOTIFICATION_SEEN_KEY)
       : null
     const params = since ? `?since=${encodeURIComponent(since)}` : ''
     const res = await fetch(`/api/notifications${params}`, { cache: 'no-store' })
     if (!res.ok) return
     const data = await res.json() as { unreadCount: number; items: NotificationItem[] }
-    setItems(data.items)
-    setUnreadCount(data.unreadCount)
+    const dismissedIds = getDismissedIds()
+    const visibleItems = data.items.filter((item) => !dismissedIds.has(item.id))
+    const sinceDate = since ? new Date(since) : null
+    setItems(visibleItems)
+    setUnreadCount(
+      sinceDate
+        ? visibleItems.filter((item) => new Date(item.createdAt) > sinceDate).length
+        : visibleItems.length
+    )
   }
 
   function markRead() {
     const now = new Date().toISOString()
-    window.localStorage.setItem('sbc-notifications-seen-at', now)
+    window.localStorage.setItem(NOTIFICATION_SEEN_KEY, now)
     setUnreadCount(0)
+  }
+
+  function dismissNotification(id: string) {
+    const dismissedIds = getDismissedIds()
+    dismissedIds.add(id)
+    saveDismissedIds(dismissedIds)
+    setItems((current) => current.filter((item) => item.id !== id))
+    setUnreadCount((count) => Math.max(0, count - 1))
+    setOpen(false)
   }
 
   useEffect(() => {
@@ -170,7 +201,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                     <Link
                       key={item.id}
                       href={item.href}
-                      onClick={() => setOpen(false)}
+                      onClick={() => dismissNotification(item.id)}
                       className="block border-b border-[#eef2f7] px-4 py-3 transition-colors last:border-b-0 hover:bg-[#fff7f8] dark:border-white/5 dark:hover:bg-white/5"
                     >
                       <div className="flex items-start justify-between gap-3">
