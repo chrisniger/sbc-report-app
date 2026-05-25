@@ -40,6 +40,14 @@ type NotificationItem = {
   kind: 'report' | 'review' | 'system'
 }
 
+type SearchResult = {
+  id: string
+  type: 'Report' | 'Team' | 'Member' | 'User'
+  title: string
+  subtitle: string
+  href: string
+}
+
 const NOTIFICATION_SEEN_KEY = 'sbc-notifications-seen-at'
 const NOTIFICATION_DISMISSED_KEY = 'sbc-notifications-dismissed-ids'
 
@@ -69,9 +77,14 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname()
   const title = PATH_TITLES[pathname] ?? 'Dashboard'
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<NotificationItem[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
 
   async function loadNotifications() {
     const since = typeof window !== 'undefined'
@@ -107,6 +120,10 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     setOpen(false)
   }
 
+  function closeSearch() {
+    setSearchOpen(false)
+  }
+
   useEffect(() => {
     const initialLoad = window.setTimeout(() => {
       loadNotifications().catch(() => null)
@@ -125,11 +142,50 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       if (!dropdownRef.current?.contains(event.target as Node)) {
         setOpen(false)
       }
+      if (!searchRef.current?.contains(event.target as Node)) {
+        setSearchOpen(false)
+      }
     }
 
     window.addEventListener('mousedown', handleClick)
     return () => window.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    const query = searchQuery.trim()
+    if (query.length < 2) {
+      const reset = window.setTimeout(() => {
+        setSearchResults([])
+        setSearchLoading(false)
+      }, 0)
+      return () => window.clearTimeout(reset)
+    }
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setSearchLoading(true)
+      fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+        .then((response) => response.ok ? response.json() : { results: [] })
+        .then((data: { results?: SearchResult[] }) => {
+          setSearchResults(data.results ?? [])
+          setSearchOpen(true)
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setSearchResults([])
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearchLoading(false)
+        })
+    }, 250)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [searchQuery])
 
   return (
     <header className="relative z-[100] h-20 flex items-center gap-4 px-4 md:px-8 bg-white/85 backdrop-blur-xl border-b border-[#e5e7eb] shadow-[0_8px_28px_rgba(15,23,42,0.04)] shrink-0 dark:bg-[#080912]/88 dark:border-sbc-red/20 dark:shadow-none">
@@ -147,13 +203,53 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       </h1>
 
       {/* Search — hidden on small screens */}
-      <div className="hidden sm:block flex-1 max-w-md ml-5 relative">
+      <div ref={searchRef} className="hidden sm:block flex-1 max-w-md ml-5 relative">
         <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-[#94a3b8] dark:text-white/55 pointer-events-none" />
         <input
           type="search"
           placeholder="Search..."
+          value={searchQuery}
+          onChange={(event) => {
+            setSearchQuery(event.target.value)
+            setSearchOpen(event.target.value.trim().length >= 2)
+          }}
+          onFocus={() => setSearchOpen(searchQuery.trim().length >= 2)}
           className="w-full pl-12 pr-5 py-3 text-base bg-white border border-[#dfe4ec] rounded-xl shadow-[0_8px_22px_rgba(15,23,42,0.06)] outline-none text-[#111827] placeholder:text-[#94a3b8] transition-colors focus:border-sbc-red/40 focus:ring-4 focus:ring-sbc-red/10 dark:rounded-lg dark:bg-white/[0.055] dark:border-white/10 dark:text-white dark:placeholder:text-white/45 dark:shadow-none dark:focus:border-white/20 dark:focus:ring-white/5"
         />
+
+        {searchOpen && (
+          <div className="absolute left-0 right-0 top-full z-[120] mt-3 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-[0_20px_50px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-zinc-900">
+            <div className="border-b border-[#eef2f7] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:border-white/10 dark:text-white/45">
+              Global Search
+            </div>
+            <div className="max-h-96 overflow-y-auto py-1">
+              {searchLoading ? (
+                <div className="px-4 py-5 text-sm text-[#64748b] dark:text-white/45">Searching...</div>
+              ) : searchResults.length === 0 ? (
+                <div className="px-4 py-5 text-sm text-[#64748b] dark:text-white/45">No matching results.</div>
+              ) : (
+                searchResults.map((result) => (
+                  <Link
+                    key={result.id}
+                    href={result.href}
+                    onClick={closeSearch}
+                    className="block border-b border-[#eef2f7] px-4 py-3 transition-colors last:border-b-0 hover:bg-[#fff7f8] dark:border-white/5 dark:hover:bg-white/5"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 shrink-0 rounded-md bg-sbc-red/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-sbc-red dark:bg-sbc-red/15">
+                        {result.type}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#111827] dark:text-white">{result.title}</p>
+                        <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-[#475569] dark:text-white/55">{result.subtitle}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="ml-auto flex items-center gap-3">
