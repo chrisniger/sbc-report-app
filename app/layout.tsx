@@ -19,6 +19,11 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'SBC Report App | The Summit Bible Church',
   description: 'SBC Reporting System',
+  icons: {
+    icon: '/images/logo.png',
+    shortcut: '/images/logo.png',
+    apple: '/images/logo.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

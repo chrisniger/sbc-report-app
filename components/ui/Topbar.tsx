@@ -1,6 +1,8 @@
 'use client'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Search, Menu } from 'lucide-react'
+import { Bell, Search, Menu, CheckCheck } from 'lucide-react'
 import DarkModeToggle from './DarkModeToggle'
 
 const PATH_TITLES: Record<string, string> = {
@@ -29,9 +31,74 @@ interface TopbarProps {
   onMenuClick: () => void
 }
 
+type NotificationItem = {
+  id: string
+  title: string
+  body: string
+  href: string
+  createdAt: string
+  kind: 'report' | 'review' | 'system'
+}
+
+function relativeTime(value: string) {
+  const diff = Date.now() - new Date(value).getTime()
+  const minutes = Math.max(0, Math.floor(diff / 60000))
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
 export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname()
   const title = PATH_TITLES[pathname] ?? 'Dashboard'
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  async function loadNotifications() {
+    const since = typeof window !== 'undefined'
+      ? window.localStorage.getItem('sbc-notifications-seen-at')
+      : null
+    const params = since ? `?since=${encodeURIComponent(since)}` : ''
+    const res = await fetch(`/api/notifications${params}`, { cache: 'no-store' })
+    if (!res.ok) return
+    const data = await res.json() as { unreadCount: number; items: NotificationItem[] }
+    setItems(data.items)
+    setUnreadCount(data.unreadCount)
+  }
+
+  function markRead() {
+    const now = new Date().toISOString()
+    window.localStorage.setItem('sbc-notifications-seen-at', now)
+    setUnreadCount(0)
+  }
+
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => {
+      loadNotifications().catch(() => null)
+    }, 0)
+    const interval = window.setInterval(() => {
+      loadNotifications().catch(() => null)
+    }, 60000)
+    return () => {
+      window.clearTimeout(initialLoad)
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (!dropdownRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    window.addEventListener('mousedown', handleClick)
+    return () => window.removeEventListener('mousedown', handleClick)
+  }, [])
 
   return (
     <header className="h-20 flex items-center gap-4 px-4 md:px-8 bg-white/85 backdrop-blur-xl border-b border-[#e5e7eb] shadow-[0_8px_28px_rgba(15,23,42,0.04)] shrink-0 dark:bg-[#080912]/88 dark:border-sbc-red/20 dark:shadow-none">
@@ -59,13 +126,67 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        <button
-          aria-label="Notifications"
-          className="relative p-2 text-[#475569] hover:text-sbc-red dark:text-white/70 dark:hover:text-white transition-colors"
-        >
-          <Bell size={21} />
-          <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sbc-red px-1 text-[10px] font-bold leading-none text-white">3</span>
-        </button>
+        <div ref={dropdownRef} className="relative">
+          <button
+            aria-label="Notifications"
+            onClick={() => {
+              setOpen((value) => !value)
+              if (!open) markRead()
+            }}
+            className="relative p-2 text-[#475569] hover:text-sbc-red dark:text-white/70 dark:hover:text-white transition-colors"
+          >
+            <Bell size={21} />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sbc-red px-1 text-[10px] font-bold leading-none text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {open && (
+            <div className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-[0_20px_50px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-zinc-900">
+              <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3 dark:border-white/10">
+                <div>
+                  <p className="text-sm font-semibold text-[#111827] dark:text-white">Notifications</p>
+                  <p className="text-xs text-[#64748b] dark:text-white/45">Latest report activity</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={markRead}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-sbc-red hover:bg-sbc-red/10"
+                >
+                  <CheckCheck size={13} />
+                  Read
+                </button>
+              </div>
+
+              <div className="max-h-96 overflow-y-auto py-1">
+                {items.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-[#64748b] dark:text-white/45">
+                    No notifications yet.
+                  </div>
+                ) : (
+                  items.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      onClick={() => setOpen(false)}
+                      className="block border-b border-[#eef2f7] px-4 py-3 transition-colors last:border-b-0 hover:bg-[#fff7f8] dark:border-white/5 dark:hover:bg-white/5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#111827] dark:text-white">{item.title}</p>
+                          <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-[#475569] dark:text-white/55">{item.body}</p>
+                        </div>
+                        <span className="shrink-0 text-[11px] text-[#94a3b8] dark:text-white/35">{relativeTime(item.createdAt)}</span>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <DarkModeToggle />
       </div>
     </header>
