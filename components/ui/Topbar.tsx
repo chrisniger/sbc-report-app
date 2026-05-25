@@ -101,7 +101,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   }, [])
 
   return (
-    <header className="h-20 flex items-center gap-4 px-4 md:px-8 bg-white/85 backdrop-blur-xl border-b border-[#e5e7eb] shadow-[0_8px_28px_rgba(15,23,42,0.04)] shrink-0 dark:bg-[#080912]/88 dark:border-sbc-red/20 dark:shadow-none">
+    <header className="relative z-[100] h-20 flex items-center gap-4 px-4 md:px-8 bg-white/85 backdrop-blur-xl border-b border-[#e5e7eb] shadow-[0_8px_28px_rgba(15,23,42,0.04)] shrink-0 dark:bg-[#080912]/88 dark:border-sbc-red/20 dark:shadow-none">
       {/* Hamburger — mobile only */}
       <button
         onClick={onMenuClick}
@@ -144,7 +144,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           </button>
 
           {open && (
-            <div className="absolute right-0 top-full z-50 mt-3 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-[0_20px_50px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-zinc-900">
+            <div className="absolute right-0 top-full z-[110] mt-3 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-[#e5e7eb] bg-white shadow-[0_20px_50px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-zinc-900">
               <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3 dark:border-white/10">
                 <div>
                   <p className="text-sm font-semibold text-[#111827] dark:text-white">Notifications</p>
