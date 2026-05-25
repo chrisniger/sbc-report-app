@@ -20,9 +20,12 @@ export const metadata: Metadata = {
   title: 'SBC Report App | The Summit Bible Church',
   description: 'SBC Reporting System',
   icons: {
-    icon: '/images/logo.png',
-    shortcut: '/images/logo.png',
-    apple: '/images/logo.png',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
   },
 }
 
