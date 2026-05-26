@@ -100,6 +100,10 @@ const authConfig: NextAuthConfig = {
       // Always allow NextAuth API routes
       if (path.startsWith('/api/auth')) return true
 
+      // Public read-only setting used by the login page contact button.
+      // Writes are still protected inside the route handler.
+      if (path === '/api/settings/whatsapp') return true
+
       // Login page — redirect already-logged-in users to their dashboard
       if (path === '/login') {
         if (isLoggedIn) return Response.redirect(new URL('/dashboard', nextUrl))
