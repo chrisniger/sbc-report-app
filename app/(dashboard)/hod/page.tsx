@@ -87,7 +87,7 @@ export default async function HodDashboardPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="My Team Members" value={memberCount} subtitle="Add" color="red" icon={<Users size={36} />} href="/hod/members?add=1" />
-        <StatCard label="Reports Submitted" value={submittedCount} subtitle="Add Report" color="green" icon={<FileText size={36} />} href="/hod/report" />
+        <StatCard label="Reports Submitted" value={submittedCount} subtitle="Create" color="green" icon={<FileText size={36} />} href="/hod/report" />
         <StatCard
           label="Last Avg Score"
           value={lastAvg != null ? lastAvg.toFixed(1) : '-'}
