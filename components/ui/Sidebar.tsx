@@ -101,8 +101,10 @@ export default function Sidebar({
             <span className="font-heading text-white text-2xl leading-none">SBC</span>
           </div>
         )}
-        <div>
-          <div className="font-heading text-slate-900 dark:text-white text-xl tracking-widest leading-tight">SUMMIT BIBLE</div>
+        <div className="min-w-0 flex-1">
+          <div className="font-heading text-slate-900 dark:text-white text-[clamp(0.82rem,0.9vw,1rem)] tracking-wider leading-tight whitespace-nowrap">
+            SUMMIT BIBLE CHURCH
+          </div>
           <div className="text-sbc-red text-xs uppercase tracking-wider leading-tight font-semibold">Report System</div>
         </div>
       </div>
