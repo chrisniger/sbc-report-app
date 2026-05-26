@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,6 +9,7 @@ import { z } from 'zod'
 import {
   Loader2, Eye, EyeOff, Plus, Trash2, Lock, Unlock,
   Send, ChevronUp, ChevronDown, Edit, AlertTriangle,
+  MessageCircle,
 } from 'lucide-react'
 import Tabs from '@/components/ui/Tabs'
 import type { TabDef } from '@/components/ui/Tabs'
@@ -235,6 +237,129 @@ function SmtpTab({ initial }: { initial: SmtpRecord | null }) {
         >
           {testing && <Loader2 size={13} className="animate-spin" />}
           Test Connection
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// ─── TAB 2: WhatsApp Contact ────────────────────────────────────────────────
+
+type WhatsappContact = {
+  phone: string | null
+  href: string | null
+}
+
+function WhatsappTab() {
+  const [phone, setPhone] = useState('')
+  const [previewHref, setPreviewHref] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      fetch('/api/settings/whatsapp', { cache: 'no-store', signal: controller.signal })
+        .then((response) => response.ok ? response.json() : { phone: null, href: null })
+        .then((data: WhatsappContact) => {
+          setPhone(data.phone ?? '')
+          setPreviewHref(data.href)
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setPhone('')
+            setPreviewHref(null)
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false)
+        })
+    }, 0)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [])
+
+  async function onSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings/whatsapp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      })
+      const json = await res.json() as WhatsappContact & { error?: string }
+      if (!res.ok) {
+        toast('error', json.error ?? 'Failed to save WhatsApp contact')
+        return
+      }
+      setPhone(json.phone ?? '')
+      setPreviewHref(json.href)
+      toast('success', json.phone ? 'WhatsApp contact saved' : 'WhatsApp contact cleared')
+    } catch {
+      toast('error', 'Failed to save WhatsApp contact')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={onSave} className="space-y-5 max-w-xl">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-100">
+        <div className="flex items-start gap-3">
+          <MessageCircle size={18} className="mt-0.5 shrink-0" />
+          <p>
+            This number appears on the login page and dashboard header so users can contact the admin through WhatsApp.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <label className={labelCls}>WhatsApp Number</label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          className={inputCls}
+          placeholder="08012345678 or 2348012345678"
+          disabled={loading}
+        />
+        <p className="mt-1.5 text-xs text-gray-400">
+          Local Nigerian numbers starting with 0 will be converted to 234 automatically.
+        </p>
+      </div>
+
+      {previewHref && (
+        <a
+          href={previewHref}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200"
+        >
+          <MessageCircle size={15} />
+          Test WhatsApp Link
+        </a>
+      )}
+
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          type="submit"
+          disabled={loading || saving}
+          className="flex items-center gap-2 px-5 py-2 bg-sbc-red text-white text-sm font-medium rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+        >
+          {saving && <Loader2 size={13} className="animate-spin" />}
+          Save WhatsApp Contact
+        </button>
+        <button
+          type="button"
+          disabled={loading || saving || !phone}
+          onClick={() => setPhone('')}
+          className="px-4 py-2 border border-sbc-grey dark:border-white/10 text-sm text-gray-600 dark:text-gray-300 rounded hover:bg-zinc-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors"
+        >
+          Clear
         </button>
       </div>
     </form>
@@ -852,6 +977,7 @@ function FieldsTab({ initialFields }: { initialFields: FieldRecord[] }) {
 
 const MAIN_TABS: TabDef[] = [
   { id: 'smtp', label: 'SMTP' },
+  { id: 'whatsapp', label: 'WhatsApp Contact' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'periods', label: 'Report Periods' },
   { id: 'fields', label: 'Form Builder' },
@@ -865,6 +991,7 @@ export default function SettingsClient({ smtp, notifications, periods, fields, t
       <Tabs tabs={MAIN_TABS} active={activeTab} onChange={setActiveTab} className="px-5" />
       <div className="p-5">
         {activeTab === 'smtp' && <SmtpTab initial={smtp} />}
+        {activeTab === 'whatsapp' && <WhatsappTab />}
         {activeTab === 'notifications' && <NotificationsTab initialData={notifications} teams={teams} />}
         {activeTab === 'periods' && <PeriodsTab initialData={periods} />}
         {activeTab === 'fields' && <FieldsTab initialFields={fields} />}

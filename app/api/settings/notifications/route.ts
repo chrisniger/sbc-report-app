@@ -21,6 +21,7 @@ export async function GET() {
 
   try {
     const records = await prisma.notificationSetting.findMany({
+      where: { event: { not: 'WHATSAPP_CONTACT' } },
       orderBy: { createdAt: 'asc' },
     })
 

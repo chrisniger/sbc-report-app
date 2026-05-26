@@ -7,7 +7,10 @@ import type { SmtpRecord, NotifRecord, PeriodRecord, FieldRecord, TeamOption } f
 async function getData() {
   const [smtpRaw, notifRaw, periodsRaw, fieldsRaw, teams] = await Promise.all([
     prisma.smtpSettings.findFirst(),
-    prisma.notificationSetting.findMany({ orderBy: { createdAt: 'asc' } }),
+    prisma.notificationSetting.findMany({
+      where: { event: { not: 'WHATSAPP_CONTACT' } },
+      orderBy: { createdAt: 'asc' },
+    }),
     prisma.reportPeriod.findMany({ orderBy: [{ year: 'desc' }, { month: 'desc' }] }),
     prisma.customFormField.findMany({
       where: { isActive: true },

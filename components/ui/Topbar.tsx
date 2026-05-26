@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, Search, Menu, CheckCheck } from 'lucide-react'
 import DarkModeToggle from './DarkModeToggle'
+import WhatsappContactButton from './WhatsappContactButton'
 
 const PATH_TITLES: Record<string, string> = {
   '/admin': 'Dashboard',
@@ -253,6 +254,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <WhatsappContactButton />
         <div ref={dropdownRef} className="relative">
           <button
             aria-label="Notifications"

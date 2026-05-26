@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import WhatsappContactButton from '@/components/ui/WhatsappContactButton'
 
 const schema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -164,9 +165,7 @@ function LoginContent() {
             </button>
           </form>
 
-          <p className="mt-7 text-white/25 text-xs text-center">
-            Forgot your password? Contact your system administrator.
-          </p>
+          <WhatsappContactButton variant="login" />
         </div>
       </div>
     </div>
